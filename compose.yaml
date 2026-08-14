@@ -1,0 +1,124 @@
+services:
+    laravel.test:
+        build:
+            context: './vendor/laravel/sail/runtimes/8.5'
+            dockerfile: Dockerfile
+            args:
+                WWWGROUP: '${WWWGROUP}'
+        image: 'sail-8.5/app'
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        ports:
+            - '${APP_PORT:-80}:80'
+            - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
+            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
+            IGNITION_LOCAL_SITES_PATH: '${PWD}'
+        volumes:
+            - '.:/var/www/html'
+        networks:
+            - sail
+        depends_on:
+            pgsql:
+                condition: service_healthy
+            ai-agent:
+                condition: service_healthy
+    ai-agent:
+        image: 'sail-8.5/app'
+        restart: unless-stopped
+        working_dir: '/var/www/html/services/ai-agent'
+        entrypoint:
+            - /bin/sh
+            - '-lc'
+        command:
+            - 'if [ ! -d node_modules ]; then npm ci; fi; npm run build; exec node dist/server.js'
+        environment:
+            PORT: 3100
+            GEMINI_API_KEY: '${GEMINI_API_KEY:-}'
+            GEMINI_MODEL: '${GEMINI_MODEL:-gemini-3.5-flash-lite}'
+            GEMINI_FALLBACK_MODEL: '${GEMINI_FALLBACK_MODEL:-gemini-3.1-flash-lite}'
+            GEMINI_TIMEOUT_MS: '${GEMINI_TIMEOUT_MS:-25000}'
+            AI_AGENT_BODY_LIMIT: '${AI_AGENT_BODY_LIMIT:-20mb}'
+            AI_SERVICE_SECRET: '${AI_SERVICE_SECRET}'
+            MCP_SERVER_URL: 'http://pokedex-mcp:3200/mcp'
+        networks:
+            - sail
+        volumes:
+            - '.:/var/www/html'
+        depends_on:
+            pokedex-mcp:
+                condition: service_healthy
+        healthcheck:
+            test:
+                - CMD
+                - node
+                - '-e'
+                - "fetch('http://127.0.0.1:3100/health',{headers:{Authorization:'Bearer '+process.env.AI_SERVICE_SECRET}}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+            interval: 10s
+            retries: 5
+            start_period: 10s
+            timeout: 5s
+    pokedex-mcp:
+        image: 'sail-8.5/app'
+        restart: unless-stopped
+        working_dir: '/var/www/html/services/pokedex-mcp'
+        entrypoint:
+            - /bin/sh
+            - '-lc'
+        command:
+            - 'if [ ! -d node_modules ]; then npm ci; fi; npm run build; exec node dist/server.js'
+        environment:
+            PORT: 3200
+            LARAVEL_INTERNAL_URL: 'http://laravel.test/api/internal/assistant'
+            LARAVEL_TIMEOUT_MS: '${MCP_LARAVEL_TIMEOUT_MS:-10000}'
+        networks:
+            - sail
+        volumes:
+            - '.:/var/www/html'
+        healthcheck:
+            test:
+                - CMD
+                - node
+                - '-e'
+                - "fetch('http://127.0.0.1:3200/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+            interval: 10s
+            retries: 5
+            start_period: 10s
+            timeout: 5s
+    pgsql:
+        image: 'postgres:18-alpine'
+        restart: unless-stopped
+        ports:
+            - '${FORWARD_DB_PORT:-5432}:5432'
+        environment:
+            PGPASSWORD: '${DB_PASSWORD:-secret}'
+            POSTGRES_DB: '${DB_DATABASE}'
+            POSTGRES_USER: '${DB_USERNAME}'
+            POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
+        volumes:
+            - 'sail-pgsql:/var/lib/postgresql'
+            - './vendor/laravel/sail/database/pgsql/create-testing-database.sql:/docker-entrypoint-initdb.d/10-create-testing-database.sql'
+        networks:
+            - sail
+        healthcheck:
+            test:
+                - CMD
+                - pg_isready
+                - '-q'
+                - '-d'
+                - '${DB_DATABASE}'
+                - '-U'
+                - '${DB_USERNAME}'
+            interval: 5s
+            retries: 5
+            start_period: 10s
+            timeout: 5s
+networks:
+    sail:
+        driver: bridge
+volumes:
+    sail-pgsql:
+        driver: local

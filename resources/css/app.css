@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[x-cloak] {
+    display: none;
+}
+
+html {
+    color-scheme: light dark;
+    scroll-behavior: smooth;
+}
+
+body {
+    min-width: 320px;
+    background: #f6f7f9;
+}
+
+::selection {
+    background: rgb(198 47 61 / 0.22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background: #0e1420;
+    }
+}
