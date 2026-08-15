@@ -8,6 +8,7 @@ use App\Http\Controllers\InsightController;
 use App\Http\Controllers\PokedexController;
 use App\Http\Controllers\PokemonCollectionItemController;
 use App\Http\Controllers\PokemonComparisonController;
+use App\Http\Controllers\UserProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login')->name('home');
@@ -30,6 +31,11 @@ Route::middleware([
 
     Route::get('/insights', InsightController::class)->name('insights.index');
     Route::get('/compare', PokemonComparisonController::class)->name('compare.index');
+
+    Route::get('/user/profile', [UserProfileController::class, 'show'])->name('profile.show');
+    Route::post('/user/profile/regenerate-bio', [UserProfileController::class, 'regenerateBio'])
+        ->middleware('throttle:10,1')
+        ->name('profile.bio.regenerate');
 
     Route::get('/assistant/conversations', [AssistantConversationController::class, 'index'])
         ->middleware('throttle:assistant-read')

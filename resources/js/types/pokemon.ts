@@ -102,3 +102,20 @@ export interface CollectionImpact {
     lost_types: string[];
     stat_changes: CollectionImpactChange[];
 }
+
+export interface TrainerCardData {
+    trainer_number: string;
+    trainer_name: string;
+    avatar_url: string | null;
+    member_since: string;
+    rank: string;
+    total_pokemon: number;
+    favorites_count: number;
+    dominant_type: string | null;
+    signature_pokemon: Pokemon | null;
+    party: Pokemon[];
+    headline: string;
+    description: string;
+    is_ai_generated: boolean;
+}
+

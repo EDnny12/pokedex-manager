@@ -20,7 +20,7 @@ Pokédex Manager permite construir una colección Pokémon propia a partir de un
 
 ## Funcionalidades
 
-- **Cuenta personal:** registro, inicio de sesión, consulta de perfil y cierre de sesión con Laravel Fortify y Jetstream.
+- **Cuenta personal y Tarjeta de Entrenador:** registro, inicio de sesión, foto de perfil personalizable, credencial digital con cálculo determinista de rango (Novato a Maestro Pokémon), equipo representativo de 6 Pokémon, Pokémon insignia y biografía de identidad generada por Pika IA con fallback determinista y caché SHA-256.
 - **Mi colección:** búsqueda instantánea por nombre, apodo o número; filtros por tipo y favoritos; ordenamiento; edición de apodo, notas y estado favorito; eliminación con confirmación.
 - **Explorar Pokédex:** catálogo paginado, búsqueda por nombre o número, filtro por tipo, ficha individual y alta sin duplicados.
 - **Detalle Pokémon:** arte oficial o sprite disponible, tipos, habilidades, altura, peso y estadísticas base.
@@ -38,7 +38,8 @@ La aplicación separa los datos de catálogo de los datos propios de cada cuenta
 | Origen | Responsabilidad |
 | --- | --- |
 | PokéAPI | Nombres, números, imágenes, tipos, habilidades, dimensiones y estadísticas Pokémon. Las respuestas se normalizan y almacenan temporalmente en caché. |
-| PostgreSQL | Usuarios, colección personal, apodos, notas, favoritos, conversaciones, mensajes, metadatos de adjuntos y acciones pendientes de Pika IA. |
+| PostgreSQL | Usuarios, colección personal, apodos, notas, favoritos, conversaciones, mensajes, metadatos de adjuntos, rutas de foto de perfil y acciones pendientes de Pika IA. |
+| Almacenamiento público de Laravel | Fotos de perfil personalizadas servidas de forma estática y eficiente mediante el enlace simbólico `storage/app/public`. |
 | Almacenamiento privado de Laravel | Archivos adjuntos al chat; nunca se publican directamente desde `public/`. |
 
 La restricción única `(user_id, pokemon_id)` evita que una misma cuenta agregue dos veces el mismo Pokémon. El volumen Docker `sail-pgsql` conserva PostgreSQL al detener o recrear los contenedores.
@@ -157,6 +158,7 @@ alias sail='sh $([ -f sail ] && echo sail || echo vendor/bin/sail)'
 sail up -d
 sail artisan key:generate
 sail artisan migrate
+sail artisan storage:link
 sail npm ci
 sail npm run build
 ```

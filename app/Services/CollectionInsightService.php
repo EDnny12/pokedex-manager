@@ -26,8 +26,22 @@ class CollectionInsightService
         $items = collect($collectionItems);
         $typeDistribution = $items
             ->flatMap(fn (array $pokemon): array => $pokemon['types'])
-            ->countBy()
-            ->sortDesc();
+            ->countBy();
+
+        $sortedTypeKeys = $typeDistribution->keys()->sort(function (string $typeA, string $typeB) use ($typeDistribution): int {
+            $countA = (int) $typeDistribution[$typeA];
+            $countB = (int) $typeDistribution[$typeB];
+
+            if ($countA !== $countB) {
+                return $countB <=> $countA;
+            }
+
+            return strcmp($typeA, $typeB);
+        })->values();
+
+        $sortedTypeDistribution = $sortedTypeKeys->mapWithKeys(
+            fn (string $type): array => [$type => $typeDistribution[$type]]
+        );
 
         $topStats = collect(self::STAT_LABELS)
             ->map(function (string $label, string $stat) use ($items): ?array {
@@ -53,21 +67,21 @@ class CollectionInsightService
             ->values()
             ->all();
 
-        $dominantType = $typeDistribution->isEmpty()
+        $dominantType = $sortedTypeDistribution->isEmpty()
             ? null
-            : ['name' => $typeDistribution->keys()->first(), 'count' => $typeDistribution->first()];
+            : ['name' => (string) $sortedTypeDistribution->keys()->first(), 'count' => (int) $sortedTypeDistribution->first()];
 
         return [
             'total' => $items->count(),
             'favorites' => $items->where('is_favorite', true)->count(),
-            'represented_types' => $typeDistribution->count(),
+            'represented_types' => $sortedTypeDistribution->count(),
             'total_types' => count($allTypes),
-            'type_distribution' => $typeDistribution
+            'type_distribution' => $sortedTypeDistribution
                 ->map(fn (int $count, string $type): array => ['name' => $type, 'count' => $count])
                 ->values()
                 ->all(),
             'dominant_type' => $dominantType,
-            'missing_types' => collect($allTypes)->diff($typeDistribution->keys())->values()->all(),
+            'missing_types' => collect($allTypes)->diff($sortedTypeDistribution->keys())->values()->all(),
             'top_stats' => $topStats,
         ];
     }

@@ -1,6 +1,6 @@
 import express from 'express';
 import { z } from 'zod';
-import { generateAssistantResponse } from './gemini.js';
+import { generateAssistantResponse, generateTrainerBio } from './gemini.js';
 import { readToolResult, withMcpClient } from './mcp-client.js';
 
 const app = express();
@@ -135,6 +135,46 @@ app.post('/actions/execute', async (request, response) => {
             error: error instanceof Error ? error.message : 'Unknown error',
         }));
         response.status(503).json({ message: 'No se pudo ejecutar la acción.' });
+    }
+});
+
+const trainerBioSchema = z.object({
+    rank: z.string().min(1).max(50),
+    totalPokemon: z.number().int().nonnegative(),
+    favorites: z.number().int().nonnegative(),
+    dominantType: z.string().nullable().optional(),
+    signaturePokemon: z.object({
+        name: z.string(),
+        displayName: z.string(),
+        types: z.array(z.string()),
+        isFavorite: z.boolean(),
+    }).nullable().optional(),
+    party: z.array(z.object({
+        name: z.string(),
+        displayName: z.string(),
+        types: z.array(z.string()),
+        isFavorite: z.boolean(),
+    })).max(6).default([]),
+});
+
+app.post('/trainer/profile-bio', async (request, response) => {
+    const parsed = trainerBioSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+        response.status(422).json({ message: 'Los datos del entrenador no son válidos.' });
+        return;
+    }
+
+    try {
+        const bio = await generateTrainerBio(parsed.data);
+        response.json(bio);
+    } catch (error) {
+        console.error(JSON.stringify({
+            status: 'error',
+            endpoint: '/trainer/profile-bio',
+            error: error instanceof Error ? error.message : 'Unknown error',
+        }));
+        response.status(503).json({ message: 'No se pudo generar la biografía del entrenador.' });
     }
 });
 

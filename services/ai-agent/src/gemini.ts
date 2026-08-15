@@ -1,4 +1,4 @@
-import { ApiError, GoogleGenAI, ThinkingLevel, type Content, type FunctionDeclaration, type Part } from '@google/genai';
+import { ApiError, GoogleGenAI, ThinkingLevel, Type, type Content, type FunctionDeclaration, type Part } from '@google/genai';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { MODEL_TOOL_NAMES, readToolResult } from './mcp-client.js';
 import { SYSTEM_PROMPT } from './prompt.js';
@@ -247,3 +247,129 @@ async function generateWithModel(
 
     throw new Error('Se alcanzó el límite seguro de llamadas a herramientas.');
 }
+
+export interface TrainerCollectionSummary {
+    rank: string;
+    totalPokemon: number;
+    favorites: number;
+    dominantType?: string | null;
+    signaturePokemon?: {
+        name: string;
+        displayName: string;
+        types: string[];
+        isFavorite: boolean;
+    } | null;
+    party: Array<{
+        name: string;
+        displayName: string;
+        types: string[];
+        isFavorite: boolean;
+    }>;
+}
+
+export interface TrainerBioResponse {
+    headline: string;
+    description: string;
+}
+
+export const TRAINER_BIO_SYSTEM_PROMPT = `<role>
+You are an expert Pokémon Trainer Card chronicler and biographer for Pokédex Manager.
+</role>
+
+<critical_rules>
+- Language requirement: All user-facing string values MUST be written in clear, natural Spanish.
+- Grounding: The supplied structured context is the strict boundary of truth. Do not invent Pokémon, types, battle roles, stats, or unstated traits not provided in the input.
+- "headline" constraints: A creative, brief title in Spanish (2 to 4 words, e.g. "Domador de las Llamas", "Estratega de Tipo Planta", "Coleccionista Versátil").
+- "description" constraints: Exactly ONE natural, engaging sentence in Spanish summarizing the trainer's identity and collection style using only characteristics explicitly supported by the supplied context.
+</critical_rules>`;
+
+export async function generateTrainerBio(
+    summary: TrainerCollectionSummary,
+): Promise<TrainerBioResponse> {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+        throw new Error('GEMINI_API_KEY no está configurada.');
+    }
+
+    const primaryModel = process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash-lite';
+    const fallbackModel = process.env.GEMINI_FALLBACK_MODEL?.trim() || 'gemini-3.1-flash-lite';
+    const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: { timeout: Number(process.env.GEMINI_TIMEOUT_MS ?? 15_000) },
+    });
+
+    const userPrompt = `<trainer_collection_context>
+Rank: ${summary.rank}
+Total Pokémon: ${summary.totalPokemon}
+Favorites: ${summary.favorites}
+Dominant Type: ${summary.dominantType ?? 'None'}
+Signature Pokémon: ${summary.signaturePokemon ? `${summary.signaturePokemon.displayName} (${summary.signaturePokemon.types.join('/')})` : 'None'}
+Party: ${summary.party.map((p) => `${p.displayName} (${p.types.join('/')})`).join(', ') || 'None'}
+</trainer_collection_context>
+
+<examples>
+Example 1:
+Context: Rank: Experto, Dominant Type: fire, Signature Pokémon: Charizard (fire/flying)
+Output: { "headline": "Domador de las Llamas", "description": "Entrenador de rango Experto con una clara afinidad por el tipo Fuego y Charizard como Pokémon insignia." }
+
+Example 2:
+Context: Rank: Líder, Dominant Type: water, Signature Pokémon: Blastoise (water)
+Output: { "headline": "Comandante de las Mareas", "description": "Entrenador de rango Líder especializado en Pokémon de tipo Agua, encabezado por Blastoise." }
+
+Example 3:
+Context: Rank: Entrenador, Dominant Type: None, Signature Pokémon: Pikachu (electric)
+Output: { "headline": "Estratega Polivalente", "description": "Entrenador con un equipo equilibrado y diverso, guiado por Pikachu como Pokémon insignia." }
+</examples>
+
+<task>
+Based exclusively on the trainer_collection_context above, generate the headline and description in Spanish.
+</task>`;
+
+    const generate = async (model: string): Promise<TrainerBioResponse> => {
+        const response = await ai.models.generateContent({
+            model,
+            contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+            config: {
+                systemInstruction: { parts: [{ text: TRAINER_BIO_SYSTEM_PROMPT }] },
+                thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: Type.OBJECT,
+                    description: 'Trainer license card identity containing headline and descriptive bio in Spanish.',
+                    properties: {
+                        headline: {
+                            type: Type.STRING,
+                            description: 'Creative short title (2-4 words in Spanish).',
+                        },
+                        description: {
+                            type: Type.STRING,
+                            description: 'Exactly one natural sentence in Spanish summarizing the trainer identity and collection style.',
+                        },
+                    },
+                    required: ['headline', 'description'],
+                },
+            },
+        });
+
+        const parsed = JSON.parse(response.text?.trim() || '{}');
+        if (!parsed.headline || !parsed.description) {
+            throw new Error('Respuesta de perfil de entrenador no válida.');
+        }
+
+        return {
+            headline: String(parsed.headline).trim(),
+            description: String(parsed.description).trim(),
+        };
+    };
+
+    try {
+        return await generate(primaryModel);
+    } catch (error) {
+        if (fallbackModel && fallbackModel !== primaryModel) {
+            return await generate(fallbackModel);
+        }
+        throw error;
+    }
+}
+
+

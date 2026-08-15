@@ -68,3 +68,12 @@ test('system prompt formats pokemon cry audio links correctly', () => {
     assert.match(SYSTEM_PROMPT, /Escuchar grito de/i);
 });
 
+test('trainer bio prompt defines English system prompt with Spanish output and grounding rules', async () => {
+    const { TRAINER_BIO_SYSTEM_PROMPT } = await import('./gemini.js');
+    assert.match(TRAINER_BIO_SYSTEM_PROMPT, /You are an expert Pokémon Trainer Card chronicler/i);
+    assert.match(TRAINER_BIO_SYSTEM_PROMPT, /All user-facing string values MUST be written in clear, natural Spanish/i);
+    assert.match(TRAINER_BIO_SYSTEM_PROMPT, /The supplied structured context is the strict boundary of truth/i);
+    assert.match(TRAINER_BIO_SYSTEM_PROMPT, /trainer's identity and collection style using only characteristics explicitly supported/i);
+});
+
+
