@@ -19,6 +19,7 @@ defineProps<{
         | 'image'
         | 'send'
         | 'close'
+        | 'volume'
         | 'menu';
 }>();
 </script>
@@ -84,6 +85,11 @@ defineProps<{
         </template>
         <template v-else-if="name === 'close'">
             <path d="m6 6 12 12M18 6 6 18" />
+        </template>
+        <template v-else-if="name === 'volume'">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
         </template>
         <template v-else-if="name === 'menu'">
             <path d="M4 7h16M4 12h16M4 17h16" />

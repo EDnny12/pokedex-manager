@@ -5,14 +5,65 @@ import PokemonStats from '@/Components/Pokemon/PokemonStats.vue';
 import PokemonTypeBadge from '@/Components/Pokemon/PokemonTypeBadge.vue';
 import type { Pokemon } from '@/types/pokemon';
 import { formatPokemonId } from '@/utils/pokemon';
+import { computed, onUnmounted, shallowRef } from 'vue';
 
-defineProps<{ pokemon: Pokemon }>();
+const props = defineProps<{ pokemon: Pokemon }>();
 
 defineSlots<{
     eyebrow(): unknown;
     actions(): unknown;
     aside(): unknown;
 }>();
+
+const isPlaying = shallowRef(false);
+let activeAudio: HTMLAudioElement | null = null;
+
+const cryUrl = computed(() => {
+    if (props.pokemon.cry_url) {
+        return props.pokemon.cry_url;
+    }
+
+    return props.pokemon.id
+        ? `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${props.pokemon.id}.ogg`
+        : null;
+});
+
+function playCry(): void {
+    const url = cryUrl.value;
+    if (!url) {
+        return;
+    }
+
+    if (activeAudio) {
+        activeAudio.pause();
+        activeAudio.currentTime = 0;
+    }
+
+    const audio = new Audio(url);
+    activeAudio = audio;
+    isPlaying.value = true;
+
+    audio.onended = () => {
+        isPlaying.value = false;
+        activeAudio = null;
+    };
+    audio.onerror = () => {
+        isPlaying.value = false;
+        activeAudio = null;
+    };
+
+    audio.play().catch(() => {
+        isPlaying.value = false;
+        activeAudio = null;
+    });
+}
+
+onUnmounted(() => {
+    if (activeAudio) {
+        activeAudio.pause();
+        activeAudio = null;
+    }
+});
 </script>
 
 <template>
@@ -29,7 +80,19 @@ defineSlots<{
                         <div v-if="$slots.eyebrow"><slot name="eyebrow" /></div>
                         <div>
                             <p class="font-mono text-xs font-bold uppercase tracking-[0.16em] text-[#9d3340] dark:text-[#f08f99]">{{ formatPokemonId(pokemon.id) }}</p>
-                            <h1 class="mt-1 text-3xl font-bold tracking-[-0.04em] sm:text-4xl">{{ pokemon.display_name }}</h1>
+                            <div class="mt-1 flex items-center gap-3">
+                                <h1 class="text-3xl font-bold tracking-[-0.04em] sm:text-4xl">{{ pokemon.display_name }}</h1>
+                                <button
+                                    v-if="cryUrl"
+                                    type="button"
+                                    class="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-[#505867] shadow-xs transition-[border-color,background-color,color,transform] hover:border-[#c62f3d] hover:bg-[#fff0f1] hover:text-[#c62f3d] active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c62f3d] dark:border-white/10 dark:bg-white/5 dark:text-[#d6dbe4] dark:hover:border-[#f08f99] dark:hover:bg-[#c62f3d]/10 dark:hover:text-[#f08f99]"
+                                    :aria-label="`Escuchar sonido característico de ${pokemon.display_name}`"
+                                    :title="`Escuchar sonido de ${pokemon.display_name}`"
+                                    @click="playCry"
+                                >
+                                    <AppIcon name="volume" class="size-5 transition-transform" :class="{ 'motion-safe:animate-pulse text-[#c62f3d] dark:text-[#f08f99]': isPlaying }" />
+                                </button>
+                            </div>
                         </div>
                         <div class="flex flex-wrap gap-2">
                             <PokemonTypeBadge v-for="type in pokemon.types" :key="type" :type="type" />

@@ -16,6 +16,7 @@ export interface Pokemon {
     name: string;
     display_name: string;
     image: string | null;
+    cry_url?: string | null;
     types: string[];
     height_m: number | null;
     weight_kg: number | null;

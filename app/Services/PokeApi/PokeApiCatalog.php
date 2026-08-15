@@ -655,6 +655,8 @@ class PokeApiCatalog implements PokemonCatalog
             'image' => Arr::get($pokemon, 'sprites.other.official-artwork.front_default')
                 ?? Arr::get($pokemon, 'sprites.other.home.front_default')
                 ?? Arr::get($pokemon, 'sprites.front_default'),
+            'cry_url' => Arr::get($pokemon, 'cries.latest')
+                ?? Arr::get($pokemon, 'cries.legacy'),
             'types' => collect(Arr::get($pokemon, 'types', []))
                 ->sortBy('slot')
                 ->pluck('type.name')

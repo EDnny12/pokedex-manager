@@ -62,6 +62,7 @@ class PokeApiCatalogTest extends TestCase
             'name' => $name,
             'display_name' => ucfirst($name),
             'image' => null,
+            'cry_url' => null,
             'types' => [],
             'height_m' => 0.0,
             'weight_kg' => 0.0,
