@@ -85,8 +85,14 @@ class PokemonCollectionItemController extends Controller
         PokemonCollectionItem $pokemonCollectionItem,
     ): RedirectResponse {
         $validated = $request->validated();
-        $validated['nickname'] = filled($validated['nickname']) ? trim($validated['nickname']) : null;
-        $validated['notes'] = filled($validated['notes']) ? trim($validated['notes']) : null;
+
+        foreach (['nickname', 'notes'] as $field) {
+            if (! array_key_exists($field, $validated)) {
+                continue;
+            }
+
+            $validated[$field] = filled($validated[$field]) ? trim($validated[$field]) : null;
+        }
 
         $pokemonCollectionItem->update($validated);
 

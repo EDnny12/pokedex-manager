@@ -66,6 +66,28 @@ class PokemonCollectionTest extends TestCase
         $this->assertTrue($collectionItem->is_favorite);
     }
 
+    public function test_user_can_update_a_favorite_without_overwriting_optional_personal_data(): void
+    {
+        $user = User::factory()->create();
+        $collectionItem = PokemonCollectionItem::factory()->for($user)->create([
+            'pokemon_id' => 25,
+            'nickname' => 'Chispitas',
+            'notes' => 'Mi compañero de aventuras.',
+            'is_favorite' => false,
+        ]);
+
+        $this->actingAs($user)
+            ->patch(route('collection.update', $collectionItem), ['is_favorite' => true])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $collectionItem->refresh();
+
+        $this->assertTrue($collectionItem->is_favorite);
+        $this->assertSame('Chispitas', $collectionItem->nickname);
+        $this->assertSame('Mi compañero de aventuras.', $collectionItem->notes);
+    }
+
     public function test_user_cannot_update_another_users_pokemon(): void
     {
         $owner = User::factory()->create();
