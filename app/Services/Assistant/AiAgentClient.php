@@ -3,13 +3,13 @@
 namespace App\Services\Assistant;
 
 use App\Contracts\AssistantAgent;
+use App\Exceptions\AssistantUserException;
 use App\Models\AssistantAction;
 use App\Models\AssistantConversation;
 use App\Models\User;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
-use RuntimeException;
 
 class AiAgentClient implements AssistantAgent
 {
@@ -33,13 +33,13 @@ class AiAgentClient implements AssistantAgent
                 'requestId' => $requestId,
             ])->throw();
         } catch (ConnectionException $exception) {
-            throw new RuntimeException('Pika IA no está disponible en este momento.', previous: $exception);
+            throw new AssistantUserException('Pika IA no está disponible en este momento.', previous: $exception);
         }
 
         $content = $response->json('content');
 
         if (! is_string($content) || $content === '') {
-            throw new RuntimeException('Pika IA devolvió una respuesta no válida.');
+            throw new AssistantUserException('Pika IA devolvió una respuesta no válida.');
         }
 
         return [
@@ -65,7 +65,7 @@ class AiAgentClient implements AssistantAgent
                 ->throw()
                 ->json();
         } catch (ConnectionException $exception) {
-            throw new RuntimeException('No pudimos ejecutar la acción en este momento.', previous: $exception);
+            throw new AssistantUserException('No pudimos ejecutar la acción en este momento.', previous: $exception);
         }
     }
 

@@ -4,6 +4,7 @@ namespace App\Services\Assistant;
 
 use App\Contracts\AssistantAgent;
 use App\Enums\AssistantMessageRole;
+use App\Exceptions\AssistantUserException;
 use App\Models\AssistantConversation;
 use App\Models\AssistantMessage;
 use App\Models\User;
@@ -11,7 +12,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
-use RuntimeException;
 use Throwable;
 
 class AssistantChatService
@@ -78,7 +78,7 @@ class AssistantChatService
             }
 
             if ($existingUserMessage->created_at->gt(now()->subSeconds($processingWindowSeconds))) {
-                throw new RuntimeException(
+                throw new AssistantUserException(
                     'Este mensaje todavía se está procesando. Inténtalo nuevamente en unos segundos.',
                 );
             }
@@ -142,7 +142,7 @@ class AssistantChatService
                     ];
                 }
 
-                throw new RuntimeException(
+                throw new AssistantUserException(
                     'Este mensaje todavía se está procesando. Inténtalo nuevamente en unos segundos.',
                 );
             }

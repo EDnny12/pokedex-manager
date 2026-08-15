@@ -4,10 +4,10 @@ namespace App\Actions;
 
 use App\Contracts\AssistantAgent;
 use App\Enums\AssistantActionStatus;
+use App\Exceptions\AssistantUserException;
 use App\Models\AssistantAction;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 use Throwable;
 
 class ConfirmAssistantAction
@@ -29,7 +29,7 @@ class ConfirmAssistantAction
             }
 
             if ($lockedAction->status !== AssistantActionStatus::Pending) {
-                throw new RuntimeException('Esta acción ya no se puede confirmar.');
+                throw new AssistantUserException('Esta acción ya no se puede confirmar.');
             }
 
             if ($lockedAction->expires_at->isPast()) {
@@ -44,7 +44,7 @@ class ConfirmAssistantAction
         }, attempts: 3);
 
         if ($action->status === AssistantActionStatus::Expired) {
-            throw new RuntimeException('La confirmación expiró. Solicita la acción nuevamente.');
+            throw new AssistantUserException('La confirmación expiró. Solicita la acción nuevamente.');
         }
 
         if ($action->status === AssistantActionStatus::Executed) {

@@ -11,11 +11,13 @@ use App\Models\AssistantConversation;
 use App\Models\AssistantMessage;
 use App\Models\AssistantMessageAttachment;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Mockery\MockInterface;
+use PDOException;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -393,6 +395,32 @@ class AssistantChatTest extends TestCase
             ->assertJsonPath('user_message.content', 'Analiza esta imagen.');
     }
 
+    public function test_unexpected_message_errors_return_a_generic_response(): void
+    {
+        $user = User::factory()->create();
+        $conversation = AssistantConversation::factory()->for($user)->create();
+
+        $this->mock(AssistantAgent::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('respond')
+                ->once()
+                ->andThrow(new QueryException(
+                    'pgsql',
+                    'select secret from private_table',
+                    [],
+                    new PDOException('private database details'),
+                ));
+        });
+
+        $this->actingAs($user)
+            ->postJson(route('assistant.messages.store', $conversation), [
+                'message' => 'Consulta esto',
+                'client_message_id' => fake()->uuid(),
+            ])
+            ->assertStatus(503)
+            ->assertJsonPath('message', 'No pudimos obtener una respuesta. Inténtalo de nuevo.')
+            ->assertJsonMissing(['message' => 'private database details']);
+    }
+
     public function test_persisted_image_is_available_as_context_for_a_follow_up_message(): void
     {
         Storage::fake('local');
@@ -577,10 +605,37 @@ class AssistantChatTest extends TestCase
 
         $this->actingAs($user)
             ->postJson(route('assistant.actions.confirm', $action))
-            ->assertUnprocessable();
+            ->assertStatus(503);
 
         $this->assertSame(AssistantActionStatus::Executed, $action->fresh()->status);
         $this->assertNull($action->fresh()->failure_message);
+    }
+
+    public function test_unexpected_action_errors_return_a_generic_response(): void
+    {
+        $user = User::factory()->create();
+        $conversation = AssistantConversation::factory()->for($user)->create();
+        $action = AssistantAction::factory()
+            ->for($user)
+            ->for($conversation, 'conversation')
+            ->create();
+
+        $this->mock(AssistantAgent::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('execute')
+                ->once()
+                ->andThrow(new QueryException(
+                    'pgsql',
+                    'select secret from private_table',
+                    [],
+                    new PDOException('private database details'),
+                ));
+        });
+
+        $this->actingAs($user)
+            ->postJson(route('assistant.actions.confirm', $action))
+            ->assertStatus(503)
+            ->assertJsonPath('message', 'No pudimos completar la acción. Inténtalo de nuevo.')
+            ->assertJsonMissing(['message' => 'private database details']);
     }
 
     public function test_user_cannot_confirm_another_users_action(): void

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\ConfirmAssistantAction;
 use App\Enums\AssistantActionStatus;
 use App\Enums\AssistantActionType;
+use App\Exceptions\AssistantUserException;
 use App\Http\Resources\AssistantActionResource;
 use App\Models\AssistantAction;
 use Illuminate\Http\JsonResponse;
@@ -12,7 +13,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
-use RuntimeException;
 use Throwable;
 
 class AssistantActionController extends Controller
@@ -30,10 +30,10 @@ class AssistantActionController extends Controller
             report($exception);
 
             return response()->json([
-                'message' => $exception instanceof RuntimeException
+                'message' => $exception instanceof AssistantUserException
                     ? $exception->getMessage()
                     : 'No pudimos completar la acción. Inténtalo de nuevo.',
-            ], 422);
+            ], $exception instanceof AssistantUserException ? 422 : 503);
         }
 
         return response()->json([
@@ -56,15 +56,21 @@ class AssistantActionController extends Controller
                 $lockedAction = AssistantAction::query()->lockForUpdate()->findOrFail($assistantAction->getKey());
 
                 if ($lockedAction->status !== AssistantActionStatus::Pending) {
-                    throw new RuntimeException('Esta acción ya no se puede cancelar.');
+                    throw new AssistantUserException('Esta acción ya no se puede cancelar.');
                 }
 
                 $lockedAction->update(['status' => AssistantActionStatus::Cancelled]);
 
                 return $lockedAction;
             }, attempts: 3);
-        } catch (RuntimeException $exception) {
+        } catch (AssistantUserException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return response()->json([
+                'message' => 'No pudimos cancelar la acción. Inténtalo de nuevo.',
+            ], 503);
         }
 
         return response()->json([

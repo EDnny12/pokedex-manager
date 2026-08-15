@@ -4,11 +4,11 @@ namespace App\Actions;
 
 use App\Enums\AssistantActionStatus;
 use App\Enums\AssistantActionType;
+use App\Exceptions\AssistantUserException;
 use App\Models\AssistantAction;
 use App\Models\User;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 class ExecuteAssistantAction
 {
@@ -39,13 +39,13 @@ class ExecuteAssistantAction
             }
 
             if ($lockedAction->status !== AssistantActionStatus::Confirmed) {
-                throw new RuntimeException('La acción no está confirmada.');
+                throw new AssistantUserException('La acción no está confirmada.');
             }
 
             $pokemonId = (int) $lockedAction->payload['pokemon_id'];
 
             if ($pokemonId !== $requestedPokemonId) {
-                throw new RuntimeException('La acción cambió mientras se estaba procesando. Inténtala nuevamente.');
+                throw new AssistantUserException('La acción cambió mientras se estaba procesando. Inténtala nuevamente.');
             }
 
             $result = match ($lockedAction->type) {
@@ -96,13 +96,13 @@ class ExecuteAssistantAction
             ->first();
 
         if ($collectionItem === null) {
-            throw new RuntimeException('Ese Pokémon ya no forma parte de tu colección.');
+            throw new AssistantUserException('Ese Pokémon ya no forma parte de tu colección.');
         }
 
         $changes = Arr::only((array) ($payload['changes'] ?? []), ['nickname', 'notes', 'is_favorite']);
 
         if ($changes === []) {
-            throw new RuntimeException('La acción no contiene cambios válidos.');
+            throw new AssistantUserException('La acción no contiene cambios válidos.');
         }
 
         $collectionItem->update($changes);

@@ -2,6 +2,7 @@
 
 namespace App\Services\Assistant;
 
+use App\Exceptions\AssistantUserException;
 use App\Models\AssistantConversation;
 use App\Models\AssistantMessage;
 use App\Models\AssistantMessageAttachment;
@@ -9,7 +10,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use RuntimeException;
 use Throwable;
 
 class AssistantAttachmentService
@@ -30,13 +30,13 @@ class AssistantAttachmentService
                     'image/jpeg' => 'jpg',
                     'image/png' => 'png',
                     'image/webp' => 'webp',
-                    default => throw new RuntimeException('El formato de la imagen no es compatible.'),
+                    default => throw new AssistantUserException('El formato de la imagen no es compatible.'),
                 };
                 $directory = "assistant/{$message->conversation_id}/{$message->getKey()}";
                 $path = Storage::disk($disk)->putFileAs($directory, $image, Str::uuid().'.'.$extension);
 
                 if (! is_string($path)) {
-                    throw new RuntimeException('No pudimos guardar la imagen adjunta.');
+                    throw new AssistantUserException('No pudimos guardar la imagen adjunta.');
                 }
 
                 $storedPaths[] = $path;

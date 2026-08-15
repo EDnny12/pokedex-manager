@@ -4,12 +4,12 @@ namespace App\Actions;
 
 use App\Enums\AssistantActionStatus;
 use App\Enums\AssistantActionType;
+use App\Exceptions\AssistantUserException;
 use App\Exceptions\PokemonNotFoundException;
 use App\Models\AssistantAction;
 use App\Models\AssistantConversation;
 use App\Models\User;
 use App\Services\Assistant\AssistantToolService;
-use RuntimeException;
 
 class CreateAssistantAction
 {
@@ -26,13 +26,13 @@ class CreateAssistantAction
             $pokemonData = $this->tools->pokemon($pokemon);
 
             if ($user->pokemonCollectionItems()->where('pokemon_id', $pokemonData['id'])->exists()) {
-                throw new RuntimeException('Ese Pokémon ya forma parte de tu colección.');
+                throw new AssistantUserException('Ese Pokémon ya forma parte de tu colección.');
             }
         } else {
             try {
                 $pokemonData = $this->tools->ownedPokemon($user, $pokemon);
             } catch (PokemonNotFoundException) {
-                throw new RuntimeException('Ese Pokémon no forma parte de tu colección.');
+                throw new AssistantUserException('Ese Pokémon no forma parte de tu colección.');
             }
         }
 
@@ -41,7 +41,7 @@ class CreateAssistantAction
             : [];
 
         if ($type === AssistantActionType::UpdatePokemon && ! $this->changesCollectionData($pokemonData, $normalizedChanges)) {
-            throw new RuntimeException('Esos datos ya están guardados en tu colección.');
+            throw new AssistantUserException('Esos datos ya están guardados en tu colección.');
         }
 
         $existingActionQuery = $conversation->actions()

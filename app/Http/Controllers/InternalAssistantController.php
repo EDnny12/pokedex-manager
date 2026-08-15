@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\CreateAssistantAction;
 use App\Actions\ExecuteAssistantAction;
 use App\Enums\AssistantActionType;
+use App\Exceptions\AssistantUserException;
 use App\Http\Requests\CompareAssistantPokemonRequest;
 use App\Http\Requests\FindAssistantPokemonRequest;
 use App\Http\Requests\GetAssistantCollectionRequest;
@@ -18,7 +19,6 @@ use App\Models\User;
 use App\Services\Assistant\AssistantToolService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use RuntimeException;
 
 class InternalAssistantController extends Controller
 {
@@ -94,7 +94,7 @@ class InternalAssistantController extends Controller
                 $request->validated('pokemon'),
                 $request->validated('changes', []),
             );
-        } catch (RuntimeException $exception) {
+        } catch (AssistantUserException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
         }
 

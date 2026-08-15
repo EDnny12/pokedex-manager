@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\AssistantUserException;
 use App\Http\Requests\StoreAssistantMessageRequest;
 use App\Http\Resources\AssistantConversationResource;
 use App\Http\Resources\AssistantMessageResource;
@@ -9,7 +10,6 @@ use App\Models\AssistantConversation;
 use App\Services\Assistant\AssistantChatService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
-use RuntimeException;
 use Throwable;
 
 class AssistantMessageController extends Controller
@@ -34,7 +34,7 @@ class AssistantMessageController extends Controller
             report($exception);
 
             return response()->json([
-                'message' => $exception instanceof RuntimeException
+                'message' => $exception instanceof AssistantUserException
                     ? $exception->getMessage()
                     : 'No pudimos obtener una respuesta. Inténtalo de nuevo.',
             ], 503);

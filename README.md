@@ -190,6 +190,14 @@ sail npm run dev
 | `DB_DATABASE` | `pokedex_manager` | Base de datos local. |
 | `DB_USERNAME` | `pokedex` | Usuario local. |
 | `DB_PASSWORD` | `pokedex_local` | Contraseña exclusiva del entorno local. |
+| `DB_APPLICATION_NAME` | `pokedex-manager` | Nombre con el que Laravel identifica sus conexiones PostgreSQL. |
+| `DB_SLOW_REQUEST_THRESHOLD_MS` | `500` | Umbral para registrar solicitudes con consultas acumuladas lentas. |
+| `DB_MAX_CONNECTIONS` | `80` | Umbral del monitor `db:monitor`; no cambia el límite del servidor PostgreSQL. |
+| `DB_STATEMENT_TIMEOUT_MS` | `15000` | Tiempo máximo de una sentencia PostgreSQL por conexión. |
+| `DB_LOCK_TIMEOUT_MS` | `3000` | Tiempo máximo para esperar un bloqueo PostgreSQL. |
+| `DB_IDLE_TRANSACTION_TIMEOUT_MS` | `10000` | Tiempo máximo de una transacción inactiva. |
+| `DB_ACTION_RETENTION_DAYS` | `30` | Retención local de acciones terminales antes de la limpieza programada. |
+| `DB_CONFIRMED_ACTION_TIMEOUT_MINUTES` | `5` | Tiempo para marcar como fallida una acción confirmada que no terminó. |
 | `SESSION_DRIVER` | `database` | Persistencia de sesiones en PostgreSQL. |
 | `CACHE_STORE` | `database` | Caché de Laravel y de la Pokédex en PostgreSQL. |
 
@@ -203,6 +211,7 @@ Si cambias `APP_PORT`, actualiza también `APP_URL` con el puerto correspondient
 | --- | --- |
 | `POKEAPI_BASE_URL` | Endpoint base del catálogo externo. |
 | `POKEAPI_TIMEOUT` / `POKEAPI_CONNECT_TIMEOUT` | Límites de espera para consultas externas. |
+| `POKEAPI_POOL_CONCURRENCY` | Máximo de consultas simultáneas al hidratar resultados del catálogo. |
 | `POKEAPI_CACHE_TTL` | Vigencia en segundos de la caché del catálogo. |
 | `GEMINI_API_KEY` | Credencial de Gemini disponible solo en el servidor; nunca debe usar el prefijo `VITE_`. |
 | `GEMINI_MODEL` | Modelo principal: `gemini-3.5-flash-lite`. |
@@ -210,6 +219,9 @@ Si cambias `APP_PORT`, actualiza también `APP_URL` con el puerto correspondient
 | `GEMINI_TIMEOUT_MS` | Límite de cada solicitud al proveedor. |
 | `AI_AGENT_TIMEOUT` | Tiempo total permitido por Laravel para un turno del chat. |
 | `ASSISTANT_HISTORY_LIMIT` | Cantidad máxima de mensajes recientes enviados como contexto. |
+| `ASSISTANT_MESSAGE_PAGE_SIZE` | Tamaño de cada página del historial cargada con cursor pagination. |
+| `ASSISTANT_REQUEST_LOCK_SECONDS` | Duración máxima del bloqueo de idempotencia de un mensaje. |
+| `ASSISTANT_REQUEST_LOCK_WAIT_SECONDS` | Tiempo que una solicitud repetida espera el bloqueo anterior. |
 | `ASSISTANT_IMAGE_HISTORY_LIMIT` | Cantidad de mensajes recientes con imágenes que pueden volver a incluirse. |
 | `AI_SERVICE_SECRET` | Autenticación entre Laravel y `ai-agent`. |
 | `ASSISTANT_CONTEXT_SECRET` | Firma del contexto opaco entre servicios internos. |
@@ -238,7 +250,7 @@ sail ps
 
 ## Pika IA y MCP
 
-Pika IA está disponible desde un botón flotante en las pantallas autenticadas. Cada conversación y sus mensajes persisten en PostgreSQL, por lo que el historial puede retomarse más tarde. El agente recibe una ventana limitada de mensajes recientes y adjuntos visuales relevantes para conservar continuidad sin enviar el historial completo indefinidamente.
+Pika IA está disponible desde un botón flotante en las pantallas autenticadas. Cada conversación y sus mensajes persisten en PostgreSQL, por lo que el historial puede retomarse más tarde. El historial se consulta con cursor pagination estable (`created_at` e `id`) para cargar mensajes anteriores sin degradar la consulta a medida que crece la conversación. El agente recibe una ventana limitada de mensajes recientes y adjuntos visuales relevantes para conservar continuidad sin enviar el historial completo indefinidamente.
 
 Las imágenes admitidas son JPEG, PNG y WebP, con un máximo de dos archivos de 5 MB y `4096 × 4096` píxeles por mensaje. Se validan en el servidor y se almacenan en un disco privado.
 
@@ -249,13 +261,19 @@ Las imágenes admitidas son JPEG, PNG y WebP, con un máximo de dos archivos de 
 | `get_my_collection` | Consultar y filtrar la colección autenticada. |
 | `get_my_pokemon` | Recuperar un Pokémon específico de la colección. |
 | `get_collection_summary` | Obtener resumen, tipos y estadísticas de la colección. |
-| `search_pokemon_catalog` | Buscar en la Pokédex por nombre, número o tipo. |
+| `search_pokemon_catalog` | Buscar en la Pokédex por nombre, número, tipo, habilidad o generación. |
 | `get_pokemon` | Consultar el detalle verificado de un Pokémon. |
 | `compare_pokemon` | Comparar entre dos y cuatro Pokémon. |
+| `get_pokemon_forms` | Consultar la forma seleccionada y las variedades de su especie. |
+| `get_pokemon_evolution_chain` | Consultar la cadena evolutiva y sus condiciones. |
+| `get_pokemon_type_matchups` | Calcular debilidades, resistencias e inmunidades de la forma exacta. |
+| `get_pokemon_moves` | Consultar movimientos filtrados por método y grupo de versiones. |
+| `get_move` | Consultar los detalles de combate de un movimiento. |
 | `request_add_pokemon_to_collection` | Preparar una incorporación pendiente. |
 | `request_remove_pokemon_from_collection` | Preparar una eliminación pendiente. |
+| `request_update_collection_pokemon` | Preparar cambios de apodo, notas o favorito. |
 
-Las herramientas de modificación nunca escriben de inmediato. Pika IA prepara una acción estructurada, la interfaz muestra sus consecuencias y Laravel solo la ejecuta después de una confirmación explícita.
+Las herramientas de modificación nunca escriben de inmediato. Pika IA prepara una acción estructurada, la interfaz muestra sus consecuencias y Laravel solo la ejecuta después de una confirmación explícita. `execute_confirmed_collection_action` existe únicamente como herramienta interna del servidor MCP y nunca se expone a Gemini.
 
 ### Controles de seguridad
 
