@@ -1,0 +1,8 @@
+node_modules
+vendor
+.git
+.env
+.phpunit.result.cache
+storage/*.key
+public/hot
+public/storage
