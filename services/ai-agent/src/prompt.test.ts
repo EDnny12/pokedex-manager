@@ -40,7 +40,7 @@ test('system prompt requires explicit intent and UI confirmation for mutations',
     assert.match(SYSTEM_PROMPT, /add, remove, or update request only when the person explicitly asks/i);
     assert.match(SYSTEM_PROMPT, /Include only the fields the person explicitly asked to change/i);
     assert.match(SYSTEM_PROMPT, /do not confirm a pending action/i);
-    assert.match(SYSTEM_PROMPT, /structured confirmation card/i);
+    assert.match(SYSTEM_PROMPT, /card shown below the chat/i);
     assert.match(SYSTEM_PROMPT, /does not complete the collection change/i);
 });
 
