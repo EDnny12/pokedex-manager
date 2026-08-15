@@ -1,12 +1,19 @@
-# Stage 1: Frontend asset build (using Debian-based slim for Rolldown / native glibc bindings)
+# Stage 1: PHP Composer dependencies
+FROM composer:2 AS composer
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-interaction --no-scripts --prefer-dist --ignore-platform-reqs
+
+# Stage 2: Frontend asset build
 FROM node:22-slim AS frontend
 WORKDIR /app
 COPY package.json pnpm-lock.yaml* ./
 RUN npm install -g pnpm && pnpm install --frozen-lockfile
 COPY . .
+COPY --from=composer /app/vendor ./vendor
 RUN pnpm run build
 
-# Stage 2: PHP Application Container
+# Stage 3: PHP Application Container
 FROM php:8.4-apache AS app
 
 # Install system dependencies and PHP extensions for PostgreSQL & Laravel
@@ -28,17 +35,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && a2enmod rewrite \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Composer
+# Install Composer binary
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Copy application source
+# Copy application source, compiled vendor and frontend build
 COPY . .
+COPY --from=composer /app/vendor ./vendor
 COPY --from=frontend /app/public/build ./public/build
 
-# Install PHP production dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# Finish Composer autoload optimization
+RUN composer dump-autoload --optimize --no-dev --no-interaction
 
 # Point Apache DocumentRoot to Laravel's public directory
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
