@@ -105,7 +105,7 @@ app.post('/chat', async (request, response) => {
             status: 'error',
             error: error instanceof Error ? error.message : 'Unknown error',
         }));
-        response.status(503).json({ message: 'Lía no está disponible en este momento.' });
+        response.status(503).json({ message: 'Pika IA no está disponible en este momento.' });
     }
 });
 

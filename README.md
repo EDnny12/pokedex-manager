@@ -29,13 +29,13 @@ vendor/bin/sail down -v
 
 ## Asistente con IA
 
-Lía es el chat contextual disponible desde el botón flotante de las pantallas autenticadas. Puede consultar la colección, resumirla, buscar Pokémon, comparar entre dos y cuatro opciones y preparar altas o bajas. Las conversaciones, mensajes y acciones pendientes se guardan en PostgreSQL.
+Pika IA es el chat contextual disponible desde el botón flotante de las pantallas autenticadas. Puede consultar la colección, resumirla, buscar Pokémon, comparar entre dos y cuatro opciones y preparar altas o bajas. Las conversaciones, mensajes y acciones pendientes se guardan en PostgreSQL.
 
 El modelo configurado es `gemini-3.5-flash-lite`, consumido exclusivamente desde un servicio server-side mediante el SDK oficial `@google/genai`. La clave nunca se expone a Vue ni se almacena en una variable `VITE_*`.
 
 ```mermaid
 flowchart LR
-    Vue["Vue 3 · Lía"] --> Laravel["Laravel · autenticación y reglas"]
+    Vue["Vue 3 · Pika IA"] --> Laravel["Laravel · autenticación y reglas"]
     Laravel --> PostgreSQL[(PostgreSQL)]
     Laravel --> Catalog["Servicio de Pokédex y caché"]
     Laravel --> Agent["AI Agent · TypeScript"]
@@ -73,7 +73,7 @@ Gemini no recibe ni elige `user_id`. Laravel genera un contexto opaco, firmado y
 
 Agregar y eliminar siguen este flujo:
 
-1. Lía solicita una acción pendiente, sin modificar la colección.
+1. Pika IA solicita una acción pendiente, sin modificar la colección.
 2. Vue muestra una tarjeta estructurada con la consecuencia exacta.
 3. La persona confirma o cancela mediante un endpoint autenticado.
 4. Laravel comprueba ownership, estado y expiración.
@@ -111,7 +111,7 @@ Puedes verificar su estado con:
 vendor/bin/sail ps
 ```
 
-### Ejemplos para probar Lía
+### Ejemplos para probar Pika IA
 
 - «¿Cuál es mi Pokémon más rápido?»
 - «¿Qué tipos me faltan?»

@@ -237,7 +237,7 @@ async function sendMessage(content: string, images: readonly File[] = []): Promi
     } catch (exception) {
         if (isCurrentOwner(revision)) {
             messages.value = messages.value.filter((message) => message.id !== clientMessageId);
-            error.value = exception instanceof Error ? exception.message : 'Lía no pudo responder. Inténtalo de nuevo.';
+            error.value = exception instanceof Error ? exception.message : 'Pika IA no pudo responder. Inténtalo de nuevo.';
         }
 
         return false;

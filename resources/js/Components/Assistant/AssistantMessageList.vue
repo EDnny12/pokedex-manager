@@ -54,7 +54,7 @@ const suggestions = [
                 </span>
                 <span class="min-w-0 flex-1">
                     <span class="block text-sm font-bold text-[#7f1f2b] dark:text-[#f4b0b7]">Identificar con una imagen</span>
-                    <span id="assistant-scan-description" class="mt-0.5 block text-xs leading-5 text-[#785d62] dark:text-[#d0a5aa]">Adjunta una foto o captura y Lía verificará el Pokémon en la Pokédex.</span>
+                    <span id="assistant-scan-description" class="mt-0.5 block text-xs leading-5 text-[#785d62] dark:text-[#d0a5aa]">Adjunta una foto o captura y Pika IA verificará el Pokémon en la Pokédex.</span>
                 </span>
                 <AppIcon name="arrow-left" class="size-4 shrink-0 rotate-180 text-[#a43a46] transition-transform group-hover:translate-x-0.5 dark:text-[#e78992]" aria-hidden="true" />
             </button>
@@ -104,7 +104,7 @@ const suggestions = [
             <div v-if="sending" class="flex justify-start" role="status">
                 <div class="inline-flex min-h-11 items-center gap-2 rounded-2xl rounded-bl-md border border-line bg-white px-4 text-sm text-[#697180] dark:border-white/10 dark:bg-white/5 dark:text-[#aab4c4]">
                     <span class="size-1.5 rounded-full bg-current motion-safe:animate-pulse" />
-                    Lía está consultando la Pokédex…
+                    Pika IA está consultando la Pokédex…
                 </div>
             </div>
         </template>

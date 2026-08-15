@@ -33,13 +33,13 @@ class AiAgentClient implements AssistantAgent
                 'requestId' => $requestId,
             ])->throw();
         } catch (ConnectionException $exception) {
-            throw new RuntimeException('Lía no está disponible en este momento.', previous: $exception);
+            throw new RuntimeException('Pika IA no está disponible en este momento.', previous: $exception);
         }
 
         $content = $response->json('content');
 
         if (! is_string($content) || $content === '') {
-            throw new RuntimeException('Lía devolvió una respuesta no válida.');
+            throw new RuntimeException('Pika IA devolvió una respuesta no válida.');
         }
 
         return [

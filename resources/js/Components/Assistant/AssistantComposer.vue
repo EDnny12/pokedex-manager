@@ -116,7 +116,7 @@ function handleKeydown(event: KeyboardEvent): void {
                 </button>
             </figure>
         </div>
-        <label for="assistant-message" class="sr-only">Escribe tu mensaje para Lía</label>
+        <label for="assistant-message" class="sr-only">Escribe tu mensaje para Pika IA</label>
         <div class="flex items-end gap-2 rounded-2xl border border-line-strong bg-surface-subtle p-1.5 focus-within:border-[#c62f3d] focus-within:ring-1 focus-within:ring-[#c62f3d] dark:border-white/15 dark:bg-[#0e1420]">
             <label
                 for="assistant-images"

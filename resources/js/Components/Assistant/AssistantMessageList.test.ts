@@ -20,7 +20,7 @@ describe('AssistantMessageList', () => {
         expect(wrapper.text()).toContain('Cargando conversación…');
     });
 
-    it('renderiza mensajes del usuario y de Lía', () => {
+    it('renderiza mensajes del usuario y de Pika IA', () => {
         const wrapper = mount(AssistantMessageList, {
             props: {
                 ...defaultProps,
@@ -75,11 +75,11 @@ describe('AssistantMessageList', () => {
 
         await wrapper.get('[data-testid="assistant-image-scan"]').trigger('click');
 
-        expect(wrapper.text()).toContain('Lía verificará el Pokémon en la Pokédex');
+        expect(wrapper.text()).toContain('Pika IA verificará el Pokémon en la Pokédex');
         expect(wrapper.emitted('scan')).toHaveLength(1);
     });
 
-    it('anuncia que Lía está consultando la Pokédex', () => {
+    it('anuncia que Pika IA está consultando la Pokédex', () => {
         const wrapper = mount(AssistantMessageList, {
             props: {
                 ...defaultProps,
@@ -88,6 +88,6 @@ describe('AssistantMessageList', () => {
             },
         });
 
-        expect(wrapper.get('[role="status"]').text()).toContain('Lía está consultando la Pokédex…');
+        expect(wrapper.get('[role="status"]').text()).toContain('Pika IA está consultando la Pokédex…');
     });
 });

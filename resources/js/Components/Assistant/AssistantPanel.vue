@@ -172,13 +172,13 @@ async function handleAction(action: AssistantAction, operation: 'confirm' | 'can
                             <AppIcon name="sparkles" class="size-4" />
                         </div>
                         <div class="min-w-0 flex-1">
-                            <h1 id="assistant-title" class="truncate text-sm font-bold">Lía</h1>
+                            <h1 id="assistant-title" class="truncate text-sm font-bold">Pika IA</h1>
                             <p class="truncate text-xs text-[#777f8f] dark:text-[#9aa5b5]">Asistente de tu Pokédex</p>
                         </div>
                         <button type="button" class="grid size-11 shrink-0 place-items-center rounded-xl hover:bg-surface-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c62f3d] dark:hover:bg-white/5" aria-label="Nueva conversación" @click="startConversation">
                             <AppIcon name="plus" class="size-5" />
                         </button>
-                        <button ref="closeButton" type="button" class="grid size-11 shrink-0 place-items-center rounded-xl hover:bg-surface-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c62f3d] dark:hover:bg-white/5" aria-label="Cerrar chat con Lía" @click="close">
+                        <button ref="closeButton" type="button" class="grid size-11 shrink-0 place-items-center rounded-xl hover:bg-surface-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c62f3d] dark:hover:bg-white/5" aria-label="Cerrar chat con Pika IA" @click="close">
                             <AppIcon name="close" class="size-5" />
                         </button>
                     </header>

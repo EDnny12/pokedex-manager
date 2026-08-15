@@ -21,7 +21,7 @@ describe('AssistantComposer', () => {
         expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['  Resume mi colección  ']);
     });
 
-    it('deshabilita el envío mientras Lía responde', () => {
+    it('deshabilita el envío mientras Pika IA responde', () => {
         const wrapper = mount(AssistantComposer, {
             props: { sending: true, modelValue: 'Hola', images: [] },
         });
