@@ -2,6 +2,9 @@
 import AppIcon from '@/Components/App/AppIcon.vue';
 import AssistantActionCard from '@/Components/Assistant/AssistantActionCard.vue';
 import type { AssistantAction, AssistantMessage } from '@/types/assistant';
+import DOMPurify from 'dompurify';
+import { marked } from 'marked';
+import { computed } from 'vue';
 
 defineProps<{
     messages: readonly AssistantMessage[];
@@ -27,6 +30,10 @@ const suggestions = [
     '¿Cómo puedo equilibrar mi colección?',
     'Compara Pikachu con Jolteon',
 ];
+
+function renderMarkdown(content: string): string {
+    return DOMPurify.sanitize(marked.parse(content) as string);
+}
 </script>
 
 <template>
@@ -112,7 +119,9 @@ const suggestions = [
                             decoding="async"
                         />
                     </div>
-                    <p class="whitespace-pre-wrap break-words px-3.5 py-3">{{ message.content }}</p>
+                    <p v-if="message.role === 'user'" class="whitespace-pre-wrap break-words px-3.5 py-3">{{ message.content }}</p>
+                    <!-- eslint-disable-next-line vue/no-v-html -->
+                    <div v-else class="prose prose-sm max-w-none break-words px-3.5 py-3 dark:prose-invert prose-p:leading-6 prose-p:my-1 prose-headings:font-bold prose-ul:my-1 prose-ol:my-1 prose-li:my-0" v-html="renderMarkdown(message.content)" />
                 </div>
             </div>
 

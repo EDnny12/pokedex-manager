@@ -30,5 +30,9 @@
     },
     "optionalDependencies": {
         "@laravel/multiplex": "^0.4.1"
+    },
+    "dependencies": {
+        "dompurify": "^3.4.13",
+        "marked": "^18.0.9"
     }
 }
