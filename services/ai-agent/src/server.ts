@@ -44,6 +44,16 @@ const executeSchema = z.object({
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: process.env.AI_AGENT_BODY_LIMIT ?? '20mb' }));
+
+app.get('/health', (_request, response) => {
+    response.json({
+        status: 'ok',
+        model: process.env.GEMINI_MODEL ?? 'gemini-3.5-flash-lite',
+        fallbackModel: process.env.GEMINI_FALLBACK_MODEL ?? 'gemini-3.1-flash-lite',
+        geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+    });
+});
+
 app.use((request, response, next) => {
     const token = request.headers.authorization?.replace(/^Bearer\s+/i, '');
 
@@ -53,15 +63,6 @@ app.use((request, response, next) => {
     }
 
     next();
-});
-
-app.get('/health', (_request, response) => {
-    response.json({
-        status: 'ok',
-        model: process.env.GEMINI_MODEL ?? 'gemini-3.5-flash-lite',
-        fallbackModel: process.env.GEMINI_FALLBACK_MODEL ?? 'gemini-3.1-flash-lite',
-        geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
-    });
 });
 
 app.post('/chat', async (request, response) => {
