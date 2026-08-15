@@ -40,7 +40,7 @@ services:
             GEMINI_API_KEY: '${GEMINI_API_KEY:-}'
             GEMINI_MODEL: '${GEMINI_MODEL:-gemini-3.5-flash-lite}'
             GEMINI_FALLBACK_MODEL: '${GEMINI_FALLBACK_MODEL:-gemini-3.1-flash-lite}'
-            GEMINI_TIMEOUT_MS: '${GEMINI_TIMEOUT_MS:-25000}'
+            GEMINI_TIMEOUT_MS: '${GEMINI_TIMEOUT_MS:-40000}'
             AI_AGENT_BODY_LIMIT: '${AI_AGENT_BODY_LIMIT:-20mb}'
             AI_SERVICE_SECRET: '${AI_SERVICE_SECRET}'
             MCP_SERVER_URL: 'http://pokedex-mcp:3200/mcp'
@@ -73,7 +73,7 @@ services:
         environment:
             PORT: 3200
             LARAVEL_INTERNAL_URL: 'http://laravel.test/api/internal/assistant'
-            LARAVEL_TIMEOUT_MS: '${MCP_LARAVEL_TIMEOUT_MS:-10000}'
+            LARAVEL_TIMEOUT_MS: '${MCP_LARAVEL_TIMEOUT_MS:-12000}'
         networks:
             - sail
         volumes:

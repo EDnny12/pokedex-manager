@@ -14,7 +14,7 @@ export async function callLaravel(
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), Number(process.env.LARAVEL_TIMEOUT_MS ?? 10_000));
+    const timeout = setTimeout(() => controller.abort(), Number(process.env.LARAVEL_TIMEOUT_MS ?? 12_000));
 
     try {
         const response = await fetch(url, {

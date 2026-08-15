@@ -89,7 +89,9 @@ Completa estas variables en `.env`:
 GEMINI_API_KEY=
 GEMINI_MODEL=gemini-3.5-flash-lite
 GEMINI_FALLBACK_MODEL=gemini-3.1-flash-lite
-GEMINI_TIMEOUT_MS=25000
+GEMINI_TIMEOUT_MS=40000
+AI_AGENT_TIMEOUT=90
+MCP_LARAVEL_TIMEOUT_MS=12000
 AI_AGENT_URL=http://ai-agent:3100
 AI_SERVICE_SECRET=local-development-service-secret
 ASSISTANT_CONTEXT_SECRET=local-development-context-secret

@@ -77,7 +77,7 @@ class AiAgentClient implements AssistantAgent
             ->withToken((string) config('services.assistant.service_secret'))
             ->withHeader('X-Request-Id', $requestId)
             ->connectTimeout((int) config('services.assistant.connect_timeout', 3))
-            ->timeout((int) config('services.assistant.timeout', 30));
+            ->timeout((int) config('services.assistant.timeout', 90));
 
         return $shouldRetry
             ? $request->retry([200, 500], throw: false)

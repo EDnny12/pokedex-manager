@@ -16,6 +16,8 @@ const draft = shallowRef('');
 const draftImages = shallowRef<File[]>([]);
 const showHistory = shallowRef(false);
 const busyActionId = shallowRef<string | null>(null);
+const stickToLatest = shallowRef(true);
+const latestThresholdPixels = 72;
 
 const {
     conversations,
@@ -41,24 +43,48 @@ watch(open, async (isOpen) => {
         await ensureInitialized();
         await nextTick();
         closeButton.value?.focus();
-        scrollToLatest();
+        scrollToLatest(true);
     } else if (!isOpen && dialog.value?.open) {
         dialog.value.close();
     }
 });
 
-watch(() => messages.value.length, async () => {
-    await nextTick();
-    scrollToLatest();
-});
+watch(
+    [
+        () => messages.value,
+        () => actions.value,
+        () => loading.value,
+        () => sending.value,
+    ],
+    () => scrollToLatest(),
+    { flush: 'post' },
+);
 
 function close(): void {
     open.value = false;
     showHistory.value = false;
 }
 
-function scrollToLatest(): void {
-    messageViewport.value?.scrollTo({ top: messageViewport.value.scrollHeight, behavior: 'smooth' });
+function updateScrollPreference(): void {
+    const viewport = messageViewport.value;
+
+    if (!viewport) {
+        return;
+    }
+
+    const distanceFromLatest = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    stickToLatest.value = distanceFromLatest <= latestThresholdPixels;
+}
+
+function scrollToLatest(force = false): void {
+    const viewport = messageViewport.value;
+
+    if (!viewport || (!force && !stickToLatest.value)) {
+        return;
+    }
+
+    viewport.scrollTop = viewport.scrollHeight;
+    stickToLatest.value = true;
 }
 
 async function startConversation(): Promise<void> {
@@ -70,15 +96,22 @@ async function chooseConversation(conversation: AssistantConversation): Promise<
     await selectConversation(conversation);
     showHistory.value = false;
     await nextTick();
-    scrollToLatest();
+    scrollToLatest(true);
 }
 
 async function submit(message: string, images: File[] = []): Promise<void> {
+    const submittedDraft = message;
+    const submittedImages = [...images];
+
+    stickToLatest.value = true;
+    draft.value = '';
+    draftImages.value = [];
+
     const sent = await sendMessage(message, images);
 
-    if (sent) {
-        draft.value = '';
-        draftImages.value = [];
+    if (!sent && draft.value === '' && draftImages.value.length === 0) {
+        draft.value = submittedDraft;
+        draftImages.value = submittedImages;
     }
 }
 
@@ -157,7 +190,7 @@ async function handleAction(action: AssistantAction, operation: 'confirm' | 'can
                         </button>
                     </div>
 
-                    <div ref="messageViewport" class="min-h-0 flex-1 overflow-y-auto overscroll-contain" aria-live="polite">
+                    <div ref="messageViewport" class="min-h-0 flex-1 overflow-y-auto overscroll-contain" aria-live="polite" @scroll="updateScrollPreference">
                         <AssistantMessageList
                             :messages="messages"
                             :actions="actions"

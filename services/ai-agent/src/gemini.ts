@@ -151,7 +151,7 @@ export async function generateAssistantResponse(
     const fallbackModel = process.env.GEMINI_FALLBACK_MODEL?.trim() || 'gemini-3.1-flash-lite';
     const ai = new GoogleGenAI({
         apiKey,
-        httpOptions: { timeout: Number(process.env.GEMINI_TIMEOUT_MS ?? 25_000) },
+        httpOptions: { timeout: Number(process.env.GEMINI_TIMEOUT_MS ?? 40_000) },
     });
     const availableTools = (await client.listTools()).tools.filter((tool) => MODEL_TOOL_NAMES.has(tool.name));
     const declarations: FunctionDeclaration[] = availableTools.map((tool) => ({

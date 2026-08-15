@@ -46,7 +46,7 @@ return [
         'agent_url' => env('AI_AGENT_URL', 'http://ai-agent:3100'),
         'service_secret' => env('AI_SERVICE_SECRET'),
         'context_secret' => env('ASSISTANT_CONTEXT_SECRET', env('APP_KEY')),
-        'timeout' => (int) env('AI_AGENT_TIMEOUT', 35),
+        'timeout' => (int) env('AI_AGENT_TIMEOUT', 90),
         'connect_timeout' => (int) env('AI_AGENT_CONNECT_TIMEOUT', 3),
         'history_limit' => (int) env('ASSISTANT_HISTORY_LIMIT', 16),
         'image_history_limit' => (int) env('ASSISTANT_IMAGE_HISTORY_LIMIT', 2),
