@@ -15,9 +15,10 @@ const page = usePage<AppPageProps>();
 const user = computed(() => page.props.auth.user);
 
 const navigation = [
-    { label: 'Mi colección', shortLabel: 'Colección', routeName: 'dashboard', icon: 'collection' as const },
+    { label: 'Mi colección', shortLabel: 'Colección', routeName: 'dashboard', icon: 'collection' as const, cacheTags: 'collection' },
     { label: 'Explorar Pokédex', shortLabel: 'Explorar', routeName: 'pokedex.index', icon: 'explore' as const },
     { label: 'Análisis', shortLabel: 'Análisis', routeName: 'insights.index', icon: 'insights' as const },
+    { label: 'Comparador', shortLabel: 'Comparar', routeName: 'compare.index', icon: 'compare' as const },
 ];
 
 function isActive(routeName: string): boolean {
@@ -51,23 +52,13 @@ function isActive(routeName: string): boolean {
                     :key="item.routeName"
                     :href="route(item.routeName)"
                     prefetch
-                    cache-tags="collection"
+                    :cache-tags="item.cacheTags"
                     class="group flex min-h-12 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c62f3d]"
                     :class="isActive(item.routeName) ? 'bg-[#172033] text-white shadow-sm dark:bg-[#f7f4ed] dark:text-[#172033]' : 'text-[#626979] hover:bg-surface-subtle hover:text-[#172033] dark:text-[#b3bccb] dark:hover:bg-white/5 dark:hover:text-white'"
                     :aria-current="isActive(item.routeName) ? 'page' : undefined"
                 >
                     <AppIcon :name="item.icon" class="size-5" />
                     {{ item.label }}
-                </Link>
-                <Link
-                    :href="route('compare.index')"
-                    prefetch
-                    class="group flex min-h-12 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c62f3d]"
-                    :class="isActive('compare.index') ? 'bg-[#172033] text-white shadow-sm dark:bg-[#f7f4ed] dark:text-[#172033]' : 'text-[#626979] hover:bg-surface-subtle hover:text-[#172033] dark:text-[#b3bccb] dark:hover:bg-white/5 dark:hover:text-white'"
-                    :aria-current="isActive('compare.index') ? 'page' : undefined"
-                >
-                    <AppIcon name="compare" class="size-5" />
-                    Comparador
                 </Link>
             </nav>
 
@@ -107,11 +98,13 @@ function isActive(routeName: string): boolean {
             <slot />
         </main>
 
-        <nav aria-label="Principal" class="fixed inset-x-0 bottom-0 z-50 grid grid-cols-3 border-t border-line bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden dark:border-white/10 dark:bg-[#131b29]/95">
+        <nav aria-label="Principal" class="fixed inset-x-0 bottom-0 z-50 grid grid-cols-4 border-t border-line bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden dark:border-white/10 dark:bg-[#131b29]/95">
             <Link
                 v-for="item in navigation"
                 :key="item.routeName"
                 :href="route(item.routeName)"
+                prefetch
+                :cache-tags="item.cacheTags"
                 class="flex min-h-[4.5rem] flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.7rem] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#c62f3d]"
                 :class="isActive(item.routeName) ? 'text-[#b42534] dark:text-[#f28f99]' : 'text-[#777f8f] dark:text-[#9aa5b5]'"
                 :aria-current="isActive(item.routeName) ? 'page' : undefined"
