@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '@/Components/App/AppIcon.vue';
+import PokemonImage from '@/Components/Pokemon/PokemonImage.vue';
 import type { AssistantAction } from '@/types/assistant';
 import { computed } from 'vue';
 
@@ -81,12 +82,14 @@ const changeDescriptions = computed(() => {
 <template>
     <article class="rounded-2xl border border-[#e1b8bd] bg-[#fff7f7] p-3.5 dark:border-[#8f3944]/60 dark:bg-[#341a22]">
         <div class="flex items-start gap-3">
-            <img
-                v-if="action.payload.image"
-                :src="action.payload.image"
-                :alt="`Ilustración de ${action.payload.display_name}`"
-                class="size-14 shrink-0 rounded-xl bg-white object-contain p-1 outline outline-1 outline-black/10 dark:bg-white/90"
-            />
+            <div class="size-14 shrink-0 overflow-hidden rounded-xl bg-white p-1 outline outline-1 outline-black/10 dark:bg-white/90">
+                <PokemonImage
+                    v-if="action.payload.image"
+                    :src="action.payload.image"
+                    :alt="`Ilustración de ${action.payload.display_name}`"
+                    :width="120"
+                />
+            </div>
             <div class="min-w-0 flex-1">
                 <p class="text-sm font-bold text-[#172033] dark:text-white">{{ title }}</p>
                 <p class="mt-1 text-xs leading-5 text-[#697180] dark:text-[#bdc5d2]">{{ description }}</p>

@@ -255,7 +255,7 @@ const rankBadgeClasses: Record<string, string> = {
                             </span>
 
                             <div class="size-16 shrink-0">
-                                <PokemonImage :src="card.party[index - 1].image" :alt="card.party[index - 1].display_name" class="size-full object-contain" />
+                                <PokemonImage :src="card.party[index - 1].image" :alt="card.party[index - 1].display_name" :width="120" class="size-full object-contain" />
                             </div>
 
                             <div class="mt-1 w-full">
