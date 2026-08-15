@@ -81,9 +81,11 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     return payload.data ?? payload;
 }
 
-async function load(conversationId?: string): Promise<void> {
+async function load(conversationId?: string, silent = false): Promise<void> {
     const revision = ownerRevision;
-    loading.value = true;
+    if (!silent) {
+        loading.value = true;
+    }
     error.value = null;
 
     try {
@@ -101,8 +103,12 @@ async function load(conversationId?: string): Promise<void> {
 
         conversations.value = bootstrap.conversations;
         activeConversation.value = bootstrap.active_conversation;
-        messages.value = bootstrap.messages.data;
-        messageCursor.value = bootstrap.messages.next_cursor;
+
+        if (!silent) {
+            messages.value = bootstrap.messages.data;
+            messageCursor.value = bootstrap.messages.next_cursor;
+        }
+
         actions.value = bootstrap.actions;
         initialized.value = true;
     } catch (exception) {
@@ -110,7 +116,7 @@ async function load(conversationId?: string): Promise<void> {
             error.value = exception instanceof Error ? exception.message : 'No pudimos cargar tus conversaciones.';
         }
     } finally {
-        if (isCurrentOwner(revision)) {
+        if (isCurrentOwner(revision) && !silent) {
             loading.value = false;
         }
     }
@@ -287,7 +293,11 @@ async function sendMessage(content: string, images: readonly File[] = []): Promi
             response.assistant_message,
         ];
         activeConversation.value = response.conversation;
-        await load(response.conversation.id);
+        conversations.value = [
+            response.conversation,
+            ...conversations.value.filter((item) => item.id !== response.conversation.id),
+        ];
+        await load(response.conversation.id, true);
 
         return true;
     } catch (exception) {

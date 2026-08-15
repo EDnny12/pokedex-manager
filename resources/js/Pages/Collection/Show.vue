@@ -29,6 +29,7 @@ const deleting = shallowRef(false);
 function save(): void {
     form.patch(route('collection.update', props.pokemon.collection_id), {
         preserveScroll: true,
+        invalidateCacheTags: ['collection'],
         onSuccess: () => form.defaults(),
     });
 }
@@ -36,6 +37,7 @@ function save(): void {
 function removePokemon(): void {
     deleting.value = true;
     router.delete(route('collection.destroy', props.pokemon.collection_id), {
+        invalidateCacheTags: ['collection'],
         onFinish: () => {
             deleting.value = false;
         },
