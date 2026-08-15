@@ -1,5 +1,5 @@
-# Stage 1: Frontend asset build
-FROM node:22-alpine AS frontend
+# Stage 1: Frontend asset build (using Debian-based slim for Rolldown / native glibc bindings)
+FROM node:22-slim AS frontend
 WORKDIR /app
 COPY package.json pnpm-lock.yaml* ./
 RUN npm install -g pnpm && pnpm install --frozen-lockfile
