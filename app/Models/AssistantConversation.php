@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use Database\Factories\AssistantConversationFactory;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class AssistantConversation extends Model
 {
@@ -33,14 +34,25 @@ class AssistantConversation extends Model
         return $this->hasMany(AssistantMessage::class, 'conversation_id');
     }
 
-    public function latestMessage(): HasOne
-    {
-        return $this->hasOne(AssistantMessage::class, 'conversation_id')->latest('created_at');
-    }
-
     public function actions(): HasMany
     {
         return $this->hasMany(AssistantAction::class, 'conversation_id');
+    }
+
+    #[Scope]
+    protected function withLatestMessagePreview(Builder $query): Builder
+    {
+        $conversationId = $query->getModel()->qualifyColumn('id');
+        $message = new AssistantMessage;
+
+        return $query->addSelect([
+            'preview' => AssistantMessage::query()
+                ->select($message->qualifyColumn('content'))
+                ->whereColumn($message->qualifyColumn('conversation_id'), $conversationId)
+                ->orderByDesc($message->qualifyColumn('created_at'))
+                ->orderByDesc($message->qualifyColumn('id'))
+                ->limit(1),
+        ]);
     }
 
     /** @return array<string, string> */

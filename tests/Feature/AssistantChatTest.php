@@ -39,6 +39,105 @@ class AssistantChatTest extends TestCase
             ->assertJsonCount(1, 'conversations');
     }
 
+    public function test_history_uses_a_stable_cursor_from_the_latest_messages(): void
+    {
+        config(['services.assistant.message_page_size' => 20]);
+        $user = User::factory()->create();
+        $conversation = AssistantConversation::factory()->for($user)->create();
+        $start = now()->subMinutes(25);
+
+        foreach (range(0, 24) as $index) {
+            AssistantMessage::factory()->for($conversation, 'conversation')->create([
+                'content' => "Mensaje {$index}",
+                'created_at' => $start->copy()->addSeconds($index),
+                'updated_at' => $start->copy()->addSeconds($index),
+            ]);
+        }
+
+        $firstPage = $this->actingAs($user)
+            ->getJson(route('assistant.conversations.index', ['conversation' => $conversation]))
+            ->assertOk()
+            ->assertJsonCount(20, 'messages.data')
+            ->assertJsonPath('messages.data.0.content', 'Mensaje 5')
+            ->assertJsonPath('messages.data.19.content', 'Mensaje 24')
+            ->assertJsonPath('messages.has_more', true)
+            ->assertJsonPath('conversations.0.preview', 'Mensaje 24');
+        $cursor = $firstPage->json('messages.next_cursor');
+
+        $this->actingAs($user)
+            ->getJson(route('assistant.messages.index', [
+                'assistantConversation' => $conversation,
+                'cursor' => $cursor,
+            ]))
+            ->assertOk()
+            ->assertJsonCount(5, 'messages.data')
+            ->assertJsonPath('messages.data.0.content', 'Mensaje 0')
+            ->assertJsonPath('messages.data.4.content', 'Mensaje 4')
+            ->assertJsonPath('messages.next_cursor', null)
+            ->assertJsonPath('messages.has_more', false);
+    }
+
+    public function test_invalid_history_cursor_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $conversation = AssistantConversation::factory()->for($user)->create();
+
+        $this->actingAs($user)
+            ->getJson(route('assistant.messages.index', [
+                'assistantConversation' => $conversation,
+                'cursor' => 'invalid-cursor',
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('cursor');
+    }
+
+    public function test_user_cannot_paginate_another_users_conversation(): void
+    {
+        $owner = User::factory()->create();
+        $intruder = User::factory()->create();
+        $conversation = AssistantConversation::factory()->for($owner)->create();
+
+        $this->actingAs($intruder)
+            ->getJson(route('assistant.messages.index', $conversation))
+            ->assertForbidden();
+    }
+
+    public function test_conversation_only_returns_currently_actionable_actions(): void
+    {
+        config(['database.monitoring.confirmed_action_timeout_minutes' => 5]);
+        $user = User::factory()->create();
+        $conversation = AssistantConversation::factory()->for($user)->create();
+        $pending = AssistantAction::factory()
+            ->for($user)
+            ->for($conversation, 'conversation')
+            ->create();
+        AssistantAction::factory()
+            ->for($user)
+            ->for($conversation, 'conversation')
+            ->create(['expires_at' => now()->subMinute()]);
+        $confirmed = AssistantAction::factory()
+            ->for($user)
+            ->for($conversation, 'conversation')
+            ->create([
+                'status' => AssistantActionStatus::Confirmed,
+                'expires_at' => now()->subMinute(),
+            ]);
+        AssistantAction::factory()
+            ->for($user)
+            ->for($conversation, 'conversation')
+            ->create([
+                'status' => AssistantActionStatus::Confirmed,
+                'updated_at' => now()->subMinutes(6),
+            ]);
+
+        $this->actingAs($user)
+            ->getJson(route('assistant.conversations.index', ['conversation' => $conversation]))
+            ->assertOk()
+            ->assertJsonCount(2, 'actions')
+            ->assertJsonPath('actions.0.id', $confirmed->getKey())
+            ->assertJsonPath('actions.1.id', $pending->getKey());
+    }
+
     public function test_message_is_persisted_with_agent_response(): void
     {
         $user = User::factory()->create();
@@ -65,6 +164,123 @@ class AssistantChatTest extends TestCase
         $this->assertSame(2, AssistantMessage::query()->count());
         $this->assertSame('¿Cuántos eléctricos tengo?', $conversation->messages()->oldest()->value('content'));
         $this->assertNotSame('Nueva conversación', $conversation->fresh()->title);
+    }
+
+    public function test_repeated_client_message_id_returns_the_persisted_response_once(): void
+    {
+        $user = User::factory()->create();
+        $conversation = AssistantConversation::factory()->for($user)->create();
+        $clientMessageId = fake()->uuid();
+
+        $this->mock(AssistantAgent::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('respond')->once()->andReturn([
+                'content' => 'Respuesta idempotente.',
+                'metadata' => [],
+            ]);
+        });
+
+        $payload = [
+            'message' => 'Háblame de Pikachu.',
+            'client_message_id' => $clientMessageId,
+        ];
+
+        $this->actingAs($user)
+            ->postJson(route('assistant.messages.store', $conversation), $payload)
+            ->assertOk()
+            ->assertJsonPath('assistant_message.content', 'Respuesta idempotente.');
+
+        $this->actingAs($user)
+            ->postJson(route('assistant.messages.store', $conversation), $payload)
+            ->assertOk()
+            ->assertJsonPath('assistant_message.content', 'Respuesta idempotente.');
+
+        $this->assertSame(2, $conversation->messages()->count());
+        $this->assertSame(
+            $conversation->messages()->where('role', AssistantMessageRole::Assistant)->value('reply_to_message_id'),
+            $conversation->messages()->where('client_message_id', $clientMessageId)->value('id'),
+        );
+    }
+
+    public function test_repeated_client_message_id_returns_its_response_even_with_same_second_messages(): void
+    {
+        $user = User::factory()->create();
+        $conversation = AssistantConversation::factory()->for($user)->create();
+        $clientMessageId = fake()->uuid();
+        $createdAt = now()->startOfSecond();
+        $userMessage = AssistantMessage::factory()
+            ->for($conversation, 'conversation')
+            ->create([
+                'role' => AssistantMessageRole::User,
+                'client_message_id' => $clientMessageId,
+                'metadata' => ['request_id' => fake()->uuid()],
+                'created_at' => $createdAt,
+                'updated_at' => $createdAt,
+            ]);
+        AssistantMessage::factory()
+            ->for($conversation, 'conversation')
+            ->create([
+                'role' => AssistantMessageRole::Assistant,
+                'content' => 'Respuesta de otro mensaje.',
+                'client_message_id' => null,
+                'created_at' => $createdAt,
+                'updated_at' => $createdAt,
+            ]);
+        AssistantMessage::factory()
+            ->for($conversation, 'conversation')
+            ->create([
+                'role' => AssistantMessageRole::Assistant,
+                'content' => 'Respuesta correcta.',
+                'client_message_id' => null,
+                'reply_to_message_id' => $userMessage->getKey(),
+                'created_at' => $createdAt,
+                'updated_at' => $createdAt,
+            ]);
+
+        $this->mock(AssistantAgent::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('respond')->never();
+        });
+
+        $this->actingAs($user)
+            ->postJson(route('assistant.messages.store', $conversation), [
+                'message' => 'Mensaje repetido.',
+                'client_message_id' => $clientMessageId,
+            ])
+            ->assertOk()
+            ->assertJsonPath('assistant_message.content', 'Respuesta correcta.');
+    }
+
+    public function test_stale_incomplete_message_can_be_retried_without_creating_a_duplicate_user_message(): void
+    {
+        $user = User::factory()->create();
+        $conversation = AssistantConversation::factory()->for($user)->create();
+        $clientMessageId = fake()->uuid();
+        $createdAt = now()->subMinutes(3);
+
+        AssistantMessage::factory()
+            ->for($conversation, 'conversation')
+            ->create([
+                'client_message_id' => $clientMessageId,
+                'metadata' => ['request_id' => fake()->uuid()],
+                'created_at' => $createdAt,
+                'updated_at' => $createdAt,
+            ]);
+
+        $this->mock(AssistantAgent::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('respond')->once()->andReturn([
+                'content' => 'Respuesta recuperada.',
+                'metadata' => [],
+            ]);
+        });
+
+        $this->actingAs($user)
+            ->postJson(route('assistant.messages.store', $conversation), [
+                'message' => 'Reintentar este mensaje.',
+                'client_message_id' => $clientMessageId,
+            ])
+            ->assertOk()
+            ->assertJsonPath('assistant_message.content', 'Respuesta recuperada.');
+
+        $this->assertSame(2, $conversation->messages()->count());
     }
 
     public function test_failed_generation_does_not_leave_an_orphan_message_or_retry_the_chat_request(): void

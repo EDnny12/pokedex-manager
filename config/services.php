@@ -39,6 +39,7 @@ return [
         'base_url' => env('POKEAPI_BASE_URL', 'https://pokeapi.co/api/v2'),
         'timeout' => (int) env('POKEAPI_TIMEOUT', 8),
         'connect_timeout' => (int) env('POKEAPI_CONNECT_TIMEOUT', 3),
+        'pool_concurrency' => (int) env('POKEAPI_POOL_CONCURRENCY', 20),
         'cache_ttl' => (int) env('POKEAPI_CACHE_TTL', 86400),
     ],
 
@@ -49,6 +50,9 @@ return [
         'timeout' => (int) env('AI_AGENT_TIMEOUT', 90),
         'connect_timeout' => (int) env('AI_AGENT_CONNECT_TIMEOUT', 3),
         'history_limit' => (int) env('ASSISTANT_HISTORY_LIMIT', 16),
+        'message_page_size' => (int) env('ASSISTANT_MESSAGE_PAGE_SIZE', 50),
+        'request_lock_seconds' => (int) env('ASSISTANT_REQUEST_LOCK_SECONDS', 120),
+        'request_lock_wait_seconds' => (int) env('ASSISTANT_REQUEST_LOCK_WAIT_SECONDS', 15),
         'image_history_limit' => (int) env('ASSISTANT_IMAGE_HISTORY_LIMIT', 2),
         'image_context_bytes' => (int) env('ASSISTANT_IMAGE_CONTEXT_BYTES', 12582912),
         'attachment_disk' => env('ASSISTANT_ATTACHMENT_DISK', 'local'),

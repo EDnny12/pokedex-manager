@@ -57,7 +57,14 @@ class PokeApiCatalog implements PokemonCatalog
                 throw new PokeApiUnavailableException("pokemon/{$normalizedIdentifier}");
             }
 
-            return $this->normalizePokemon($response->json());
+            $pokemon = $this->normalizePokemon($response->json());
+            $numericCacheKey = $this->pokemonCacheKey((string) $pokemon['id']);
+
+            if ($numericCacheKey !== $this->pokemonCacheKey($normalizedIdentifier)) {
+                Cache::put($numericCacheKey, $pokemon, $this->cacheTtl());
+            }
+
+            return $pokemon;
         });
     }
 
@@ -72,11 +79,15 @@ class PokeApiCatalog implements PokemonCatalog
             return [];
         }
 
+        $cacheKeysByIdentifier = $orderedIdentifiers->mapWithKeys(
+            fn (string $identifier): array => [$identifier => $this->pokemonCacheKey($identifier)],
+        );
+        $cachedPokemonByKey = Cache::many($cacheKeysByIdentifier->values()->all());
         $pokemonByIdentifier = [];
         $missingIdentifiers = [];
 
-        foreach ($orderedIdentifiers as $identifier) {
-            $cachedPokemon = Cache::get($this->pokemonCacheKey($identifier));
+        foreach ($cacheKeysByIdentifier as $identifier => $cacheKey) {
+            $cachedPokemon = $cachedPokemonByKey[$cacheKey] ?? null;
 
             if (is_array($cachedPokemon)) {
                 $pokemonByIdentifier[$identifier] = $cachedPokemon;
@@ -86,16 +97,23 @@ class PokeApiCatalog implements PokemonCatalog
         }
 
         if ($missingIdentifiers !== []) {
-            $responses = Http::pool(fn (Pool $pool): array => collect($missingIdentifiers)
-                ->mapWithKeys(fn (string $identifier): array => [
-                    $identifier => $pool
-                        ->as($identifier)
-                        ->acceptJson()
-                        ->connectTimeout($this->connectTimeout())
-                        ->timeout($this->timeout())
-                        ->get($this->endpoint("pokemon/{$identifier}")),
-                ])
-                ->all());
+            $responses = [];
+
+            foreach (collect($missingIdentifiers)->chunk($this->poolConcurrency()) as $identifierBatch) {
+                $batchResponses = Http::pool(fn (Pool $pool): array => $identifierBatch
+                    ->mapWithKeys(fn (string $identifier): array => [
+                        $identifier => $pool
+                            ->as($identifier)
+                            ->acceptJson()
+                            ->connectTimeout($this->connectTimeout())
+                            ->timeout($this->timeout())
+                            ->get($this->endpoint("pokemon/{$identifier}")),
+                    ])
+                    ->all());
+                $responses = array_replace($responses, $batchResponses);
+            }
+
+            $cacheWrites = [];
 
             foreach ($missingIdentifiers as $identifier) {
                 $response = $responses[$identifier] ?? null;
@@ -105,9 +123,13 @@ class PokeApiCatalog implements PokemonCatalog
                 }
 
                 $pokemon = $this->normalizePokemon($response->json());
-                Cache::put($this->pokemonCacheKey($identifier), $pokemon, $this->cacheTtl());
-                Cache::put($this->pokemonCacheKey((string) $pokemon['id']), $pokemon, $this->cacheTtl());
+                $cacheWrites[$this->pokemonCacheKey($identifier)] = $pokemon;
+                $cacheWrites[$this->pokemonCacheKey((string) $pokemon['id'])] = $pokemon;
                 $pokemonByIdentifier[$identifier] = $pokemon;
+            }
+
+            if ($cacheWrites !== []) {
+                Cache::putMany($cacheWrites, $this->cacheTtl());
             }
 
             if ($pokemonByIdentifier === []) {
@@ -733,6 +755,11 @@ class PokeApiCatalog implements PokemonCatalog
     private function connectTimeout(): int
     {
         return (int) config('services.pokeapi.connect_timeout', 3);
+    }
+
+    private function poolConcurrency(): int
+    {
+        return max(1, min(50, (int) config('services.pokeapi.pool_concurrency', 20)));
     }
 
     private function cacheTtl(): int

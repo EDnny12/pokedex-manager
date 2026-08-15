@@ -3,6 +3,7 @@ import type {
     AssistantBootstrap,
     AssistantConversation,
     AssistantMessage,
+    AssistantMessagePage,
 } from '@/types/assistant';
 import type { AppPageProps } from '@/types/page';
 import { router, usePage } from '@inertiajs/vue3';
@@ -12,8 +13,10 @@ import { route } from '../../../vendor/tightenco/ziggy';
 const conversations = shallowRef<AssistantConversation[]>([]);
 const activeConversation = shallowRef<AssistantConversation | null>(null);
 const messages = shallowRef<AssistantMessage[]>([]);
+const messageCursor = shallowRef<string | null>(null);
 const actions = shallowRef<AssistantAction[]>([]);
 const loading = shallowRef(false);
+const loadingOlderMessages = shallowRef(false);
 const sending = shallowRef(false);
 const error = shallowRef<string | null>(null);
 const initialized = shallowRef(false);
@@ -24,8 +27,10 @@ function resetState(): void {
     conversations.value = [];
     activeConversation.value = null;
     messages.value = [];
+    messageCursor.value = null;
     actions.value = [];
     loading.value = false;
+    loadingOlderMessages.value = false;
     sending.value = false;
     error.value = null;
     initialized.value = false;
@@ -96,7 +101,8 @@ async function load(conversationId?: string): Promise<void> {
 
         conversations.value = bootstrap.conversations;
         activeConversation.value = bootstrap.active_conversation;
-        messages.value = bootstrap.messages;
+        messages.value = bootstrap.messages.data;
+        messageCursor.value = bootstrap.messages.next_cursor;
         actions.value = bootstrap.actions;
         initialized.value = true;
     } catch (exception) {
@@ -106,6 +112,54 @@ async function load(conversationId?: string): Promise<void> {
     } finally {
         if (isCurrentOwner(revision)) {
             loading.value = false;
+        }
+    }
+}
+
+async function loadOlderMessages(): Promise<boolean> {
+    const revision = ownerRevision;
+    const conversationId = activeConversation.value?.id;
+    const cursor = messageCursor.value;
+
+    if (!conversationId || !cursor || loadingOlderMessages.value) {
+        return false;
+    }
+
+    loadingOlderMessages.value = true;
+    error.value = null;
+
+    try {
+        const url = new URL(
+            route('assistant.messages.index', conversationId),
+            window.location.origin,
+        );
+        url.searchParams.set('cursor', cursor);
+        const response = await request<{ messages: AssistantMessagePage }>(url.toString());
+
+        if (!isCurrentOwner(revision) || activeConversation.value?.id !== conversationId) {
+            return false;
+        }
+
+        const existingMessageIds = new Set(messages.value.map((message) => message.id));
+        const olderMessages = response.messages.data.filter(
+            (message) => !existingMessageIds.has(message.id),
+        );
+
+        messages.value = [...olderMessages, ...messages.value];
+        messageCursor.value = response.messages.next_cursor;
+
+        return true;
+    } catch (exception) {
+        if (isCurrentOwner(revision)) {
+            error.value = exception instanceof Error
+                ? exception.message
+                : 'No pudimos cargar los mensajes anteriores.';
+        }
+
+        return false;
+    } finally {
+        if (isCurrentOwner(revision)) {
+            loadingOlderMessages.value = false;
         }
     }
 }
@@ -133,6 +187,7 @@ async function createConversation(): Promise<AssistantConversation | null> {
         conversations.value = [conversation, ...conversations.value];
         activeConversation.value = conversation;
         messages.value = [];
+        messageCursor.value = null;
         actions.value = [];
 
         return conversation;
@@ -165,6 +220,7 @@ async function deleteConversation(conversation: AssistantConversation): Promise<
         if (activeConversation.value?.id === conversation.id) {
             activeConversation.value = null;
             messages.value = [];
+            messageCursor.value = null;
             actions.value = [];
 
             if (conversations.value[0]) {
@@ -296,8 +352,10 @@ export function useAssistantChat() {
         messages: readonly(messages),
         actions: readonly(actions),
         loading: readonly(loading),
+        loadingOlderMessages: readonly(loadingOlderMessages),
         sending: readonly(sending),
         error: readonly(error),
+        hasOlderMessages: computed(() => messageCursor.value !== null),
         hasPendingActions: computed(() => actions.value.some((action) => action.status === 'pending')),
         ensureInitialized: async (): Promise<void> => {
             synchronizeCurrentOwner();
@@ -306,6 +364,10 @@ export function useAssistantChat() {
         load: async (conversationId?: string): Promise<void> => {
             synchronizeCurrentOwner();
             await load(conversationId);
+        },
+        loadOlderMessages: async (): Promise<boolean> => {
+            synchronizeCurrentOwner();
+            return loadOlderMessages();
         },
         createConversation: async (): Promise<AssistantConversation | null> => {
             synchronizeCurrentOwner();

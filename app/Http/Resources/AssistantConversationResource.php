@@ -19,7 +19,7 @@ class AssistantConversationResource extends JsonResource
             'title' => $this->resource->title,
             'last_message_at' => $this->resource->last_message_at?->toISOString(),
             'created_at' => $this->resource->created_at?->toISOString(),
-            'preview' => $this->whenLoaded('latestMessage', fn (): ?string => $this->resource->latestMessage?->content),
+            'preview' => $this->resource->getAttribute('preview'),
         ];
     }
 }

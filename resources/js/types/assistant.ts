@@ -47,9 +47,15 @@ export interface AssistantAction {
     executed_at: string | null;
 }
 
+export interface AssistantMessagePage {
+    data: AssistantMessage[];
+    next_cursor: string | null;
+    has_more: boolean;
+}
+
 export interface AssistantBootstrap {
     conversations: AssistantConversation[];
     active_conversation: AssistantConversation | null;
-    messages: AssistantMessage[];
+    messages: AssistantMessagePage;
     actions: AssistantAction[];
 }

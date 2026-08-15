@@ -4,6 +4,8 @@ Before planning or editing, find the row whose globs match the file's path and r
 
 | Applies to | Rule file |
 | --- | --- |
+| {app/Actions/**,app/Services/PokeApi/**,app/Services/Assistant/**} | .ai/rules/assistant.md |
+| {app/Actions/PaginateAssistantMessages.php,app/Http/Controllers/AssistantConversationController.php,resources/js/Components/Assistant/**,resources/js/composables/useAssistantChat.ts,database/migrations/*assistant*} | .ai/rules/composables-migrations.md |
 | {app/Services/Assistant/**,app/Actions/Assistant/**,resources/js/Components/Assistant/**,resources/js/composables/useAssistantChat.ts,services/**} | .ai/rules/composables.md |
 | config/fortify.php | .ai/rules/config.md |
 | {app/Services/Assistant/**,app/Actions/**,resources/js/Components/Assistant/**,resources/js/composables/useAssistantChat.ts,services/**} | .ai/rules/js-composables.md |

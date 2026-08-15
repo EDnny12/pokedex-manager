@@ -7,6 +7,8 @@ defineProps<{
     messages: readonly AssistantMessage[];
     actions: readonly AssistantAction[];
     loading: boolean;
+    hasOlderMessages: boolean;
+    loadingOlderMessages: boolean;
     sending: boolean;
     busyActionId: string | null;
 }>();
@@ -14,6 +16,7 @@ defineProps<{
 defineEmits<{
     suggestion: [message: string];
     scan: [];
+    loadOlder: [];
     confirmAction: [action: AssistantAction];
     cancelAction: [action: AssistantAction];
 }>();
@@ -72,6 +75,18 @@ const suggestions = [
         </div>
 
         <template v-else>
+            <div v-if="hasOlderMessages" class="flex justify-center">
+                <button
+                    type="button"
+                    class="min-h-11 rounded-xl border border-line bg-white px-4 py-2 text-sm font-semibold text-[#505867] transition-colors hover:border-line-strong hover:bg-surface-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c62f3d] disabled:cursor-wait disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-[#d6dbe4] dark:hover:bg-white/10"
+                    :disabled="loadingOlderMessages"
+                    :aria-busy="loadingOlderMessages"
+                    @click="$emit('loadOlder')"
+                >
+                    {{ loadingOlderMessages ? 'Cargando mensajes anteriores…' : 'Cargar mensajes anteriores' }}
+                </button>
+            </div>
+
             <div
                 v-for="message in messages"
                 :key="message.id"

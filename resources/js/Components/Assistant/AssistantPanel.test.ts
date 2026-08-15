@@ -9,8 +9,11 @@ import AssistantPanel from './AssistantPanel.vue';
 let messages = shallowRef<AssistantMessage[]>([]);
 let actions = shallowRef<AssistantAction[]>([]);
 let loading = shallowRef(false);
+let loadingOlderMessages = shallowRef(false);
+let hasOlderMessages = shallowRef(false);
 let sending = shallowRef(false);
 let sendMessage = vi.fn(async () => true);
+let loadOlderMessages = vi.fn(async () => true);
 
 vi.mock('@/composables/useAssistantChat', () => ({
     useAssistantChat: () => ({
@@ -19,12 +22,15 @@ vi.mock('@/composables/useAssistantChat', () => ({
         messages,
         actions,
         loading,
+        loadingOlderMessages,
+        hasOlderMessages,
         sending,
         error: shallowRef(null),
         ensureInitialized: vi.fn(),
         createConversation: vi.fn(),
         selectConversation: vi.fn(),
         deleteConversation: vi.fn(),
+        loadOlderMessages,
         sendMessage,
         confirmAction: vi.fn(),
         cancelAction: vi.fn(),
@@ -76,8 +82,11 @@ beforeEach(() => {
     messages = shallowRef<AssistantMessage[]>([]);
     actions = shallowRef<AssistantAction[]>([]);
     loading = shallowRef(false);
+    loadingOlderMessages = shallowRef(false);
+    hasOlderMessages = shallowRef(false);
     sending = shallowRef(false);
     sendMessage = vi.fn(async () => true);
+    loadOlderMessages = vi.fn(async () => true);
 });
 
 afterEach(() => {
@@ -158,6 +167,37 @@ describe('AssistantPanel', () => {
 
         expect(sendMessage).toHaveBeenCalledWith('¿Y sus habilidades?', []);
         expect(viewport.scrollTop).toBe(900);
+        wrapper.unmount();
+    });
+
+    it('conserva la posición visual al anteponer mensajes anteriores', async () => {
+        hasOlderMessages.value = true;
+        messages.value = [message('2', 'assistant', 'Mensaje reciente.')];
+        let finishLoading = (): void => {};
+        loadOlderMessages = vi.fn(() => new Promise<boolean>((resolve) => {
+            finishLoading = () => {
+                messages.value = [
+                    message('1', 'user', 'Mensaje anterior.'),
+                    ...messages.value,
+                ];
+                resolve(true);
+            };
+        }));
+        const wrapper = mountPanel();
+        const viewport = viewportElement();
+
+        configureViewport(viewport, 600);
+        viewport.scrollTop = 80;
+        const loadButton = wrapper.findComponent(AssistantMessageList).get('button');
+        await loadButton.trigger('click');
+
+        configureViewport(viewport, 760);
+        finishLoading();
+        await flushPromises();
+        await flushViewportUpdate();
+
+        expect(loadOlderMessages).toHaveBeenCalledOnce();
+        expect(viewport.scrollTop).toBe(240);
         wrapper.unmount();
     });
 });

@@ -25,12 +25,15 @@ const {
     messages,
     actions,
     loading,
+    loadingOlderMessages,
     sending,
     error,
+    hasOlderMessages,
     ensureInitialized,
     createConversation,
     selectConversation,
     deleteConversation,
+    loadOlderMessages,
     sendMessage,
     confirmAction,
     cancelAction,
@@ -97,6 +100,28 @@ async function chooseConversation(conversation: AssistantConversation): Promise<
     showHistory.value = false;
     await nextTick();
     scrollToLatest(true);
+}
+
+async function loadPreviousMessages(): Promise<void> {
+    const viewport = messageViewport.value;
+
+    if (!viewport) {
+        await loadOlderMessages();
+        return;
+    }
+
+    const previousScrollHeight = viewport.scrollHeight;
+    const previousScrollTop = viewport.scrollTop;
+    stickToLatest.value = false;
+
+    const loaded = await loadOlderMessages();
+
+    if (!loaded) {
+        return;
+    }
+
+    await nextTick();
+    viewport.scrollTop = previousScrollTop + (viewport.scrollHeight - previousScrollHeight);
 }
 
 async function submit(message: string, images: File[] = []): Promise<void> {
@@ -195,8 +220,11 @@ async function handleAction(action: AssistantAction, operation: 'confirm' | 'can
                             :messages="messages"
                             :actions="actions"
                             :loading="loading"
+                            :has-older-messages="hasOlderMessages"
+                            :loading-older-messages="loadingOlderMessages"
                             :sending="sending"
                             :busy-action-id="busyActionId"
+                            @load-older="loadPreviousMessages"
                             @suggestion="submit"
                             @scan="startImageScan"
                             @confirm-action="handleAction($event, 'confirm')"

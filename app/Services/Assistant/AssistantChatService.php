@@ -9,7 +9,9 @@ use App\Models\AssistantMessage;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Throwable;
 
 class AssistantChatService
@@ -30,16 +32,43 @@ class AssistantChatService
         string $clientMessageId,
         array $images = [],
     ): array {
+        $lockSeconds = max(30, (int) config('services.assistant.request_lock_seconds', 120));
+        $waitSeconds = max(1, (int) config('services.assistant.request_lock_wait_seconds', 15));
+
+        return Cache::lock(
+            "assistant:message:{$conversation->getKey()}:{$clientMessageId}",
+            $lockSeconds,
+        )->block(
+            $waitSeconds,
+            fn (): array => $this->sendOnce(
+                $user,
+                $conversation,
+                $content,
+                $clientMessageId,
+                $images,
+                $lockSeconds,
+            ),
+        );
+    }
+
+    /**
+     * @param  list<UploadedFile>  $images
+     * @return array{user_message: AssistantMessage, assistant_message: AssistantMessage}
+     */
+    private function sendOnce(
+        User $user,
+        AssistantConversation $conversation,
+        string $content,
+        string $clientMessageId,
+        array $images,
+        int $processingWindowSeconds,
+    ): array {
         $existingUserMessage = $conversation->messages()
             ->where('client_message_id', $clientMessageId)
             ->first();
 
         if ($existingUserMessage instanceof AssistantMessage) {
-            $assistantMessage = $conversation->messages()
-                ->where('created_at', '>=', $existingUserMessage->created_at)
-                ->where('role', AssistantMessageRole::Assistant)
-                ->oldest()
-                ->first();
+            $assistantMessage = $existingUserMessage->assistantReply()->with('attachments')->first();
 
             if ($assistantMessage instanceof AssistantMessage) {
                 return [
@@ -47,17 +76,37 @@ class AssistantChatService
                     'assistant_message' => $assistantMessage->load('attachments'),
                 ];
             }
+
+            if ($existingUserMessage->created_at->gt(now()->subSeconds($processingWindowSeconds))) {
+                throw new RuntimeException(
+                    'Este mensaje todavía se está procesando. Inténtalo nuevamente en unos segundos.',
+                );
+            }
         }
 
-        $requestId = Str::uuid()->toString();
+        $requestId = data_get($existingUserMessage?->metadata, 'request_id');
+        $requestId = is_string($requestId) && $requestId !== ''
+            ? $requestId
+            : Str::uuid()->toString();
         $historyMessages = $conversation->messages()
             ->when(
                 $existingUserMessage instanceof AssistantMessage,
-                fn ($query) => $query->where('created_at', '<', $existingUserMessage->created_at),
+                function ($query) use ($existingUserMessage): void {
+                    $query->where(function ($query) use ($existingUserMessage): void {
+                        $query
+                            ->where('created_at', '<', $existingUserMessage->created_at)
+                            ->orWhere(function ($query) use ($existingUserMessage): void {
+                                $query
+                                    ->where('created_at', $existingUserMessage->created_at)
+                                    ->where('id', '<', $existingUserMessage->getKey());
+                            });
+                    });
+                },
             )
             ->select(['id', 'conversation_id', 'role', 'content', 'created_at'])
             ->with('attachments')
-            ->latest()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->limit((int) config('services.assistant.history_limit', 16))
             ->get()
             ->reverse()
@@ -74,13 +123,29 @@ class AssistantChatService
         if ($existingUserMessage instanceof AssistantMessage) {
             $userMessage = $existingUserMessage->load('attachments');
         } else {
-            $userMessage = $conversation->messages()->create([
+            $userMessage = $conversation->messages()->createOrFirst([
+                'client_message_id' => $clientMessageId,
+            ], [
                 'role' => AssistantMessageRole::User,
                 'content' => $normalizedContent,
-                'client_message_id' => $clientMessageId,
                 'metadata' => ['request_id' => $requestId],
             ]);
             $createdUserMessage = true;
+
+            if (! $userMessage->wasRecentlyCreated) {
+                $assistantMessage = $userMessage->assistantReply()->with('attachments')->first();
+
+                if ($assistantMessage instanceof AssistantMessage) {
+                    return [
+                        'user_message' => $userMessage->load('attachments'),
+                        'assistant_message' => $assistantMessage->load('attachments'),
+                    ];
+                }
+
+                throw new RuntimeException(
+                    'Este mensaje todavía se está procesando. Inténtalo nuevamente en unos segundos.',
+                );
+            }
 
             try {
                 $userMessage->setRelation('attachments', $this->attachments->store($userMessage, $images));
@@ -126,12 +191,17 @@ class AssistantChatService
             throw $exception;
         }
 
-        $assistantMessage = $conversation->messages()->create([
-            'role' => AssistantMessageRole::Assistant,
-            'content' => $response['content'],
-            'metadata' => $response['metadata'],
-        ]);
-        $assistantMessage->setRelation('attachments', collect());
+        $assistantMessage = $conversation->messages()->createOrFirst(
+            ['reply_to_message_id' => $userMessage->getKey()],
+            [
+                'role' => AssistantMessageRole::Assistant,
+                'content' => $response['content'],
+                'metadata' => $response['metadata'],
+            ],
+        );
+        $assistantMessage->setRelation('attachments', $assistantMessage->relationLoaded('attachments')
+            ? $assistantMessage->attachments
+            : collect());
 
         $conversation->update(['last_message_at' => now()]);
 

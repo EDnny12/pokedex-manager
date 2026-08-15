@@ -40,6 +40,9 @@ Route::middleware([
     Route::delete('/assistant/conversations/{assistantConversation}', [AssistantConversationController::class, 'destroy'])
         ->middleware('throttle:assistant-write')
         ->name('assistant.conversations.destroy');
+    Route::get('/assistant/conversations/{assistantConversation}/messages', [AssistantConversationController::class, 'messages'])
+        ->middleware('throttle:assistant-read')
+        ->name('assistant.messages.index');
     Route::post('/assistant/conversations/{assistantConversation}/messages', [AssistantMessageController::class, 'store'])
         ->middleware('throttle:assistant-chat')
         ->name('assistant.messages.store');

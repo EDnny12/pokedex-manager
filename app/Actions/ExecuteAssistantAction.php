@@ -17,7 +17,17 @@ class ExecuteAssistantAction
     /** @return array<string, mixed> */
     public function handle(User $user, AssistantAction $action): array
     {
-        return DB::transaction(function () use ($user, $action): array {
+        if ($action->user_id !== $user->getKey()) {
+            abort(403);
+        }
+
+        $requestedPokemonId = (int) $action->payload['pokemon_id'];
+        $validatedPokemonId = $action->status === AssistantActionStatus::Confirmed
+            && $action->type === AssistantActionType::AddPokemon
+                ? $this->addPokemon->resolvePokemonId($requestedPokemonId)
+                : null;
+
+        return DB::transaction(function () use ($user, $action, $requestedPokemonId, $validatedPokemonId): array {
             $lockedAction = AssistantAction::query()->lockForUpdate()->findOrFail($action->getKey());
 
             if ($lockedAction->user_id !== $user->getKey()) {
@@ -34,8 +44,12 @@ class ExecuteAssistantAction
 
             $pokemonId = (int) $lockedAction->payload['pokemon_id'];
 
+            if ($pokemonId !== $requestedPokemonId) {
+                throw new RuntimeException('La acción cambió mientras se estaba procesando. Inténtala nuevamente.');
+            }
+
             $result = match ($lockedAction->type) {
-                AssistantActionType::AddPokemon => $this->add($user, $pokemonId),
+                AssistantActionType::AddPokemon => $this->add($user, $validatedPokemonId ?? $pokemonId),
                 AssistantActionType::RemovePokemon => $this->remove($user, $pokemonId),
                 AssistantActionType::UpdatePokemon => $this->update($user, $pokemonId, $lockedAction->payload),
             };
@@ -47,13 +61,13 @@ class ExecuteAssistantAction
             ]);
 
             return ['status' => 'executed', ...$result];
-        });
+        }, attempts: 3);
     }
 
     /** @return array<string, mixed> */
     private function add(User $user, int $pokemonId): array
     {
-        $collectionItem = $this->addPokemon->handle($user, $pokemonId);
+        $collectionItem = $this->addPokemon->persistValidated($user, $pokemonId);
 
         return [
             'operation' => 'added',

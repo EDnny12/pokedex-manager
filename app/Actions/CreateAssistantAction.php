@@ -44,15 +44,19 @@ class CreateAssistantAction
             throw new RuntimeException('Esos datos ya están guardados en tu colección.');
         }
 
-        $existingAction = $conversation->actions()
+        $existingActionQuery = $conversation->actions()
             ->where('type', $type)
             ->where('status', AssistantActionStatus::Pending)
             ->where('expires_at', '>', now())
             ->where('payload->pokemon_id', $pokemonData['id'])
-            ->latest()
-            ->get()
-            ->first(fn (AssistantAction $action): bool => $type !== AssistantActionType::UpdatePokemon
-                || ($action->payload['changes'] ?? []) === $normalizedChanges);
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
+
+        $existingAction = $type === AssistantActionType::UpdatePokemon
+            ? $existingActionQuery
+                ->get()
+                ->first(fn (AssistantAction $action): bool => ($action->payload['changes'] ?? []) === $normalizedChanges)
+            : $existingActionQuery->first();
 
         if ($existingAction instanceof AssistantAction) {
             return $existingAction;

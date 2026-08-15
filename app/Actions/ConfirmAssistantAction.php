@@ -41,7 +41,7 @@ class ConfirmAssistantAction
             $lockedAction->update(['status' => AssistantActionStatus::Confirmed]);
 
             return $lockedAction->fresh('conversation');
-        });
+        }, attempts: 3);
 
         if ($action->status === AssistantActionStatus::Expired) {
             throw new RuntimeException('La confirmación expiró. Solicita la acción nuevamente.');
@@ -63,7 +63,7 @@ class ConfirmAssistantAction
                         'failure_message' => 'No se pudo completar la acción.',
                     ]);
                 }
-            });
+            }, attempts: 3);
 
             throw $exception;
         }

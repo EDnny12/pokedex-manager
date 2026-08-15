@@ -62,7 +62,7 @@ class AssistantActionController extends Controller
                 $lockedAction->update(['status' => AssistantActionStatus::Cancelled]);
 
                 return $lockedAction;
-            });
+            }, attempts: 3);
         } catch (RuntimeException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
         }

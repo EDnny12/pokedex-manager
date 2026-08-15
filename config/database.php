@@ -93,6 +93,7 @@ return [
             'username' => env('DB_USERNAME', 'root'),
             'password' => env('DB_PASSWORD', ''),
             'charset' => env('DB_CHARSET', 'utf8'),
+            'application_name' => env('DB_APPLICATION_NAME', Str::slug((string) env('APP_NAME', 'laravel'))),
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
@@ -130,6 +131,16 @@ return [
     'migrations' => [
         'table' => 'migrations',
         'update_date_on_publish' => true,
+    ],
+
+    'monitoring' => [
+        'slow_request_threshold_ms' => (int) env('DB_SLOW_REQUEST_THRESHOLD_MS', 500),
+        'max_connections' => (int) env('DB_MAX_CONNECTIONS', 80),
+        'statement_timeout_ms' => (int) env('DB_STATEMENT_TIMEOUT_MS', 15000),
+        'lock_timeout_ms' => (int) env('DB_LOCK_TIMEOUT_MS', 3000),
+        'idle_transaction_timeout_ms' => (int) env('DB_IDLE_TRANSACTION_TIMEOUT_MS', 10000),
+        'action_retention_days' => (int) env('DB_ACTION_RETENTION_DAYS', 30),
+        'confirmed_action_timeout_minutes' => (int) env('DB_CONFIRMED_ACTION_TIMEOUT_MINUTES', 5),
     ],
 
     /*

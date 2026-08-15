@@ -6,6 +6,8 @@ const defaultProps = {
     messages: [],
     actions: [],
     loading: false,
+    hasOlderMessages: false,
+    loadingOlderMessages: false,
     sending: false,
     busyActionId: null,
 };
@@ -33,6 +35,24 @@ describe('AssistantMessageList', () => {
 
         expect(wrapper.text()).toContain('¿Qué tipos me faltan?');
         expect(wrapper.text()).toContain('Aún no tienes tipo Hielo.');
+    });
+
+    it('solicita mensajes anteriores desde un control accesible', async () => {
+        const wrapper = mount(AssistantMessageList, {
+            props: {
+                ...defaultProps,
+                hasOlderMessages: true,
+                messages: [
+                    { id: '1', role: 'assistant', content: 'Mensaje reciente.', metadata: {}, attachments: [], created_at: '2026-08-13T00:00:00Z' },
+                ],
+            },
+        });
+        const button = wrapper.get('button');
+
+        expect(button.text()).toBe('Cargar mensajes anteriores');
+        await button.trigger('click');
+
+        expect(wrapper.emitted('loadOlder')).toHaveLength(1);
     });
 
     it('renderiza los adjuntos persistidos con texto alternativo útil', () => {
