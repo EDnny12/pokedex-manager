@@ -1,5 +1,5 @@
 export type AssistantRole = 'user' | 'assistant';
-export type AssistantActionType = 'add_pokemon' | 'remove_pokemon';
+export type AssistantActionType = 'add_pokemon' | 'remove_pokemon' | 'update_pokemon';
 export type AssistantActionStatus = 'pending' | 'confirmed' | 'cancelled' | 'executed' | 'failed' | 'expired';
 
 export interface AssistantConversation {
@@ -37,6 +37,11 @@ export interface AssistantAction {
         pokemon_id: number;
         display_name: string;
         image?: string | null;
+        changes?: {
+            nickname?: string | null;
+            notes?: string | null;
+            is_favorite?: boolean;
+        };
     };
     expires_at: string;
     executed_at: string | null;

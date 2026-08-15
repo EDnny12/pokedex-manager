@@ -8,6 +8,7 @@ use App\Models\PokemonCollectionItem;
 use App\Models\User;
 use App\Services\CollectionInsightService;
 use App\Services\PokemonCollectionService;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 
 class AssistantToolService
@@ -45,6 +46,24 @@ class AssistantToolService
             $items = $items->where('is_favorite', (bool) $filters['favorite']);
         }
 
+        if (! empty($filters['added_after'])) {
+            $addedAfter = CarbonImmutable::parse((string) $filters['added_after']);
+            $items = $items->filter(fn (array $pokemon): bool => ! empty($pokemon['added_at'])
+                && CarbonImmutable::parse($pokemon['added_at'])->greaterThanOrEqualTo($addedAfter));
+        }
+
+        $items = match ($filters['sort'] ?? 'recent') {
+            'oldest' => $items->sortBy('added_at'),
+            'recently_updated' => $items->sortByDesc('updated_at'),
+            'name' => $items->sortBy(fn (array $pokemon): string => Str::lower(
+                is_string($pokemon['nickname']) && $pokemon['nickname'] !== ''
+                    ? $pokemon['nickname']
+                    : (string) $pokemon['display_name'],
+            )),
+            'pokedex' => $items->sortBy('id'),
+            default => $items->sortByDesc('added_at'),
+        };
+
         return [
             'items' => $items->take((int) ($filters['limit'] ?? 20))->values()->all(),
             'total' => $items->count(),
@@ -73,9 +92,15 @@ class AssistantToolService
     }
 
     /** @return array<string, mixed> */
-    public function catalog(User $user, string $query, string $type, int $limit): array
+    public function catalog(User $user, array $filters): array
     {
-        $result = $this->pokemonCatalog->browse($query, $type, 1, $limit);
+        $result = $this->pokemonCatalog->search(
+            (string) ($filters['query'] ?? ''),
+            (string) ($filters['type'] ?? ''),
+            (string) ($filters['ability'] ?? ''),
+            (string) ($filters['generation'] ?? ''),
+            (int) ($filters['limit'] ?? 10),
+        );
         $ownedPokemonIds = $user->pokemonCollectionItems()->pluck('pokemon_id')->all();
 
         return [
@@ -106,6 +131,36 @@ class AssistantToolService
     public function compare(array $identifiers): array
     {
         return ['items' => $this->pokemonCatalog->findMany($identifiers)];
+    }
+
+    /** @return array<string, mixed> */
+    public function forms(int|string $identifier): array
+    {
+        return $this->pokemonCatalog->forms($identifier);
+    }
+
+    /** @return array<string, mixed> */
+    public function evolutionChain(int|string $identifier): array
+    {
+        return $this->pokemonCatalog->evolutionChain($identifier);
+    }
+
+    /** @return array<string, mixed> */
+    public function typeMatchups(int|string $identifier): array
+    {
+        return $this->pokemonCatalog->typeMatchups($identifier);
+    }
+
+    /** @return array<string, mixed> */
+    public function moves(int|string $identifier, string $learnMethod, string $versionGroup, int $limit): array
+    {
+        return $this->pokemonCatalog->moves($identifier, $learnMethod, $versionGroup, $limit);
+    }
+
+    /** @return array<string, mixed> */
+    public function move(int|string $identifier): array
+    {
+        return $this->pokemonCatalog->move($identifier);
     }
 
     public function resolvePokemonId(int|string $identifier): int

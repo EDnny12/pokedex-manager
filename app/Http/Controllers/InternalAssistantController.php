@@ -8,6 +8,7 @@ use App\Enums\AssistantActionType;
 use App\Http\Requests\CompareAssistantPokemonRequest;
 use App\Http\Requests\FindAssistantPokemonRequest;
 use App\Http\Requests\GetAssistantCollectionRequest;
+use App\Http\Requests\GetAssistantPokemonMovesRequest;
 use App\Http\Requests\SearchAssistantCatalogRequest;
 use App\Http\Requests\StoreAssistantActionRequest;
 use App\Http\Resources\AssistantActionResource;
@@ -17,6 +18,7 @@ use App\Models\User;
 use App\Services\Assistant\AssistantToolService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use RuntimeException;
 
 class InternalAssistantController extends Controller
 {
@@ -37,12 +39,7 @@ class InternalAssistantController extends Controller
 
     public function catalog(SearchAssistantCatalogRequest $request, AssistantToolService $tools): JsonResponse
     {
-        return response()->json($tools->catalog(
-            $this->user($request),
-            $request->string('query')->toString(),
-            $request->string('type')->toString(),
-            $request->integer('limit', 10),
-        ));
+        return response()->json($tools->catalog($this->user($request), $request->validated()));
     }
 
     public function pokemon(FindAssistantPokemonRequest $request, AssistantToolService $tools): JsonResponse
@@ -55,16 +52,51 @@ class InternalAssistantController extends Controller
         return response()->json($tools->compare($request->validated('pokemon')));
     }
 
+    public function forms(FindAssistantPokemonRequest $request, AssistantToolService $tools): JsonResponse
+    {
+        return response()->json($tools->forms($request->validated('pokemon')));
+    }
+
+    public function evolutionChain(FindAssistantPokemonRequest $request, AssistantToolService $tools): JsonResponse
+    {
+        return response()->json($tools->evolutionChain($request->validated('pokemon')));
+    }
+
+    public function typeMatchups(FindAssistantPokemonRequest $request, AssistantToolService $tools): JsonResponse
+    {
+        return response()->json($tools->typeMatchups($request->validated('pokemon')));
+    }
+
+    public function moves(GetAssistantPokemonMovesRequest $request, AssistantToolService $tools): JsonResponse
+    {
+        return response()->json($tools->moves(
+            $request->validated('pokemon'),
+            $request->string('learn_method')->toString(),
+            $request->string('version_group')->toString(),
+            $request->integer('limit', 20),
+        ));
+    }
+
+    public function move(FindAssistantPokemonRequest $request, AssistantToolService $tools): JsonResponse
+    {
+        return response()->json($tools->move($request->validated('pokemon')));
+    }
+
     public function storeAction(
         StoreAssistantActionRequest $request,
         CreateAssistantAction $createAction,
-    ): AssistantActionResource {
-        $action = $createAction->handle(
-            $this->user($request),
-            $this->conversation($request),
-            AssistantActionType::from($request->validated('type')),
-            $request->validated('pokemon'),
-        );
+    ): AssistantActionResource|JsonResponse {
+        try {
+            $action = $createAction->handle(
+                $this->user($request),
+                $this->conversation($request),
+                AssistantActionType::from($request->validated('type')),
+                $request->validated('pokemon'),
+                $request->validated('changes', []),
+            );
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
 
         return new AssistantActionResource($action);
     }

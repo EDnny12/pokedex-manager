@@ -18,6 +18,22 @@ const addAction = {
     payload: { pokemon_id: 151, display_name: 'Mew', image: null },
 };
 
+const updateAction = {
+    ...action,
+    id: '019ffde2-90f0-7388-807d-c5539cfc7b94',
+    type: 'update_pokemon' as const,
+    payload: {
+        pokemon_id: 25,
+        display_name: 'Pikachu',
+        image: null,
+        changes: {
+            nickname: 'Chispitas',
+            notes: null,
+            is_favorite: true,
+        },
+    },
+};
+
 describe('AssistantActionCard', () => {
     it('explica la consecuencia y exige una acción explícita', async () => {
         const wrapper = mount(AssistantActionCard, { props: { action } });
@@ -55,5 +71,19 @@ describe('AssistantActionCard', () => {
 
         expect(wrapper.emitted('cancel')?.[0]).toEqual([action]);
         expect(wrapper.emitted('confirm')).toBeUndefined();
+    });
+
+    it('resume y confirma únicamente los cambios solicitados', async () => {
+        const wrapper = mount(AssistantActionCard, { props: { action: updateAction } });
+
+        expect(wrapper.text()).toContain('Editar datos de Pikachu');
+        expect(wrapper.text()).toContain('Apodo: Chispitas');
+        expect(wrapper.text()).toContain('Quitar las notas');
+        expect(wrapper.text()).toContain('Marcar como favorito');
+        expect(wrapper.text()).toContain('Guardar cambios');
+
+        await wrapper.get('button:last-child').trigger('click');
+
+        expect(wrapper.emitted('confirm')?.[0]).toEqual([updateAction]);
     });
 });

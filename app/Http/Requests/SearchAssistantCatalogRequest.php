@@ -25,6 +25,8 @@ class SearchAssistantCatalogRequest extends FormRequest
         return [
             'query' => ['nullable', 'string', 'max:80'],
             'type' => ['nullable', 'string', 'max:30'],
+            'ability' => ['nullable', 'string', 'max:80'],
+            'generation' => ['nullable', 'string', 'max:30'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:20'],
         ];
     }

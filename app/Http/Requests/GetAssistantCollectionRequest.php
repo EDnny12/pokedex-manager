@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class GetAssistantCollectionRequest extends FormRequest
 {
@@ -26,6 +27,8 @@ class GetAssistantCollectionRequest extends FormRequest
             'search' => ['nullable', 'string', 'max:80'],
             'type' => ['nullable', 'string', 'max:30'],
             'favorite' => ['nullable', 'boolean'],
+            'added_after' => ['nullable', 'date'],
+            'sort' => ['nullable', Rule::in(['recent', 'oldest', 'recently_updated', 'name', 'pokedex'])],
             'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
         ];
     }

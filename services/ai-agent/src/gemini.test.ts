@@ -32,6 +32,9 @@ test('the model allow-list excludes the confirmed mutation executor', () => {
     assert.equal(MODEL_TOOL_NAMES.has('execute_confirmed_collection_action'), false);
     assert.equal(MODEL_TOOL_NAMES.has('request_add_pokemon_to_collection'), true);
     assert.equal(MODEL_TOOL_NAMES.has('request_remove_pokemon_from_collection'), true);
+    assert.equal(MODEL_TOOL_NAMES.has('request_update_collection_pokemon'), true);
+    assert.equal(MODEL_TOOL_NAMES.has('get_pokemon_type_matchups'), true);
+    assert.equal(MODEL_TOOL_NAMES.has('get_pokemon_moves'), true);
 });
 
 test('multimodal messages keep text and image data in separate parts', () => {

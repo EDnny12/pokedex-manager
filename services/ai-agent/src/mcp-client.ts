@@ -8,8 +8,14 @@ export const MODEL_TOOL_NAMES = new Set([
     'search_pokemon_catalog',
     'get_pokemon',
     'compare_pokemon',
+    'get_pokemon_forms',
+    'get_pokemon_evolution_chain',
+    'get_pokemon_type_matchups',
+    'get_pokemon_moves',
+    'get_move',
     'request_add_pokemon_to_collection',
     'request_remove_pokemon_from_collection',
+    'request_update_collection_pokemon',
 ]);
 
 export async function withMcpClient<T>(

@@ -26,11 +26,17 @@ test('MCP exposes the bounded tool set without accepting user identity', async (
             'compare_pokemon',
             'execute_confirmed_collection_action',
             'get_collection_summary',
+            'get_move',
             'get_my_collection',
             'get_my_pokemon',
             'get_pokemon',
+            'get_pokemon_evolution_chain',
+            'get_pokemon_forms',
+            'get_pokemon_moves',
+            'get_pokemon_type_matchups',
             'request_add_pokemon_to_collection',
             'request_remove_pokemon_from_collection',
+            'request_update_collection_pokemon',
             'search_pokemon_catalog',
         ]);
 
@@ -45,6 +51,13 @@ test('MCP exposes the bounded tool set without accepting user identity', async (
         });
 
         assert.equal(malformed.isError, true);
+
+        const emptyUpdate = await client.callTool({
+            name: 'request_update_collection_pokemon',
+            arguments: { pokemon: 'pikachu', changes: {} },
+        });
+
+        assert.equal(emptyUpdate.isError, true);
     } finally {
         await client.close();
         await server.close();

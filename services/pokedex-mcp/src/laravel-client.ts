@@ -9,7 +9,7 @@ export async function callLaravel(
 
     for (const [key, value] of Object.entries(options.query ?? {})) {
         if (value !== undefined && value !== null && value !== '') {
-            url.searchParams.set(key, String(value));
+            url.searchParams.set(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value));
         }
     }
 

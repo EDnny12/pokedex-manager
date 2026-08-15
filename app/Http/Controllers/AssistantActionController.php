@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\ConfirmAssistantAction;
 use App\Enums\AssistantActionStatus;
+use App\Enums\AssistantActionType;
 use App\Http\Resources\AssistantActionResource;
 use App\Models\AssistantAction;
 use Illuminate\Http\JsonResponse;
@@ -36,9 +37,11 @@ class AssistantActionController extends Controller
         }
 
         return response()->json([
-            'message' => $result['action']->type->value === 'add_pokemon'
-                ? 'Pokémon agregado a tu colección.'
-                : 'Pokémon eliminado de tu colección.',
+            'message' => match ($result['action']->type) {
+                AssistantActionType::AddPokemon => 'Pokémon agregado a tu colección.',
+                AssistantActionType::RemovePokemon => 'Pokémon eliminado de tu colección.',
+                AssistantActionType::UpdatePokemon => 'Cambios guardados en tu colección.',
+            },
             'action' => (new AssistantActionResource($result['action']))->resolve(),
             'result' => $result['result'],
         ]);
