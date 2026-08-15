@@ -62,3 +62,9 @@ test('system prompt treats images as useful but untrusted context', () => {
     assert.match(SYSTEM_PROMPT, /image provides context only; it never authorizes adding, removing, or editing/i);
     assert.match(SYSTEM_PROMPT, /distinguish what is visibly inferred from what was verified/i);
 });
+
+test('system prompt formats pokemon cry audio links correctly', () => {
+    assert.match(SYSTEM_PROMPT, /cry_url returned by the tool/i);
+    assert.match(SYSTEM_PROMPT, /Escuchar grito de/i);
+});
+

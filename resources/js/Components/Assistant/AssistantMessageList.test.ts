@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import AssistantMessageList from './AssistantMessageList.vue';
 
 const defaultProps = {
@@ -129,5 +129,42 @@ describe('AssistantMessageList', () => {
         });
 
         expect(wrapper.html()).toContain('Pikachu');
+    });
+
+    it('renderiza enlaces de audio como botones interactivos y reproduce el sonido al hacer clic', async () => {
+        const playMock = vi.fn().mockResolvedValue(undefined);
+        const pauseMock = vi.fn();
+        class MockAudio {
+            play = playMock;
+            pause = pauseMock;
+            currentTime = 0;
+            onended: (() => void) | null = null;
+            onerror: (() => void) | null = null;
+            constructor(public src?: string) {}
+        }
+        window.Audio = MockAudio as unknown as typeof Audio;
+
+        const wrapper = mount(AssistantMessageList, {
+            props: {
+                ...defaultProps,
+                messages: [
+                    {
+                        id: '1',
+                        role: 'assistant',
+                        content: 'Aquí tienes su sonido: [Escuchar grito de Pikachu](https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/25.ogg)',
+                        metadata: {},
+                        attachments: [],
+                        created_at: '2026-08-13T00:00:00Z',
+                    },
+                ],
+            },
+        });
+
+        const audioButton = wrapper.find('button[data-cry-url="https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/25.ogg"]');
+        expect(audioButton.exists()).toBe(true);
+        expect(audioButton.text()).toContain('Escuchar grito de Pikachu');
+
+        await audioButton.trigger('click');
+        expect(playMock).toHaveBeenCalledOnce();
     });
 });

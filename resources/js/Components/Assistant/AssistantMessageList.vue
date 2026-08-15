@@ -4,8 +4,8 @@ import AssistantActionCard from '@/Components/Assistant/AssistantActionCard.vue'
 import { useTypewriter } from '@/composables/useTypewriter';
 import type { AssistantAction, AssistantMessage } from '@/types/assistant';
 import DOMPurify from 'dompurify';
-import { marked } from 'marked';
-import { watch } from 'vue';
+import { Marked } from 'marked';
+import { onUnmounted, watch } from 'vue';
 
 const props = defineProps<{
     messages: readonly AssistantMessage[];
@@ -63,13 +63,84 @@ watch(
     },
 );
 
+const customMarked = new Marked({
+    gfm: true,
+    breaks: true,
+});
+
+customMarked.use({
+    renderer: {
+        link({ href, text }) {
+            if (
+                href &&
+                (href.includes('cries/pokemon') ||
+                    href.endsWith('.ogg') ||
+                    href.startsWith('cry:'))
+            ) {
+                const audioUrl = href.startsWith('cry:')
+                    ? `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${href.replace('cry:', '')}.ogg`
+                    : href;
+
+                return `<button type="button" data-cry-url="${audioUrl}" class="inline-flex items-center gap-1.5 my-1 rounded-xl border border-line bg-surface-subtle px-3 py-1.5 text-xs font-semibold text-[#172033] shadow-2xs transition-[border-color,background-color,color,transform] hover:border-[#c62f3d] hover:bg-[#fff0f1] hover:text-[#c62f3d] active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c62f3d] dark:border-white/10 dark:bg-white/10 dark:text-[#f7f4ed] dark:hover:border-[#f08f99] dark:hover:bg-[#c62f3d]/15 dark:hover:text-[#f08f99] cursor-pointer" aria-label="${text}"><svg class="size-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /></svg><span>${text}</span></button>`;
+            }
+
+            const cleanHref = DOMPurify.sanitize(href);
+            return `<a href="${cleanHref}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+        },
+    },
+});
+
 function renderMarkdown(content: string): string {
-    return DOMPurify.sanitize(marked.parse(content) as string);
+    const rawHtml = customMarked.parse(content) as string;
+    return DOMPurify.sanitize(rawHtml, {
+        ADD_ATTR: ['data-cry-url', 'target', 'rel', 'aria-label'],
+        ADD_TAGS: ['button', 'svg', 'polygon', 'path', 'span'],
+    });
 }
+
+let activeChatAudio: HTMLAudioElement | null = null;
+
+function handleMessageContainerClick(event: MouseEvent): void {
+    const target = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('[data-cry-url]');
+    if (!target) {
+        return;
+    }
+
+    const cryUrl = target.getAttribute('data-cry-url');
+    if (!cryUrl) {
+        return;
+    }
+
+    if (activeChatAudio) {
+        activeChatAudio.pause();
+        activeChatAudio.currentTime = 0;
+    }
+
+    const audio = new Audio(cryUrl);
+    activeChatAudio = audio;
+
+    target.classList.add('motion-safe:animate-pulse', 'text-[#c62f3d]', 'dark:text-[#f08f99]', 'border-[#c62f3d]', 'dark:border-[#f08f99]');
+
+    const cleanup = () => {
+        target.classList.remove('motion-safe:animate-pulse', 'text-[#c62f3d]', 'dark:text-[#f08f99]', 'border-[#c62f3d]', 'dark:border-[#f08f99]');
+        activeChatAudio = null;
+    };
+
+    audio.onended = cleanup;
+    audio.onerror = cleanup;
+    audio.play().catch(cleanup);
+}
+
+onUnmounted(() => {
+    if (activeChatAudio) {
+        activeChatAudio.pause();
+        activeChatAudio = null;
+    }
+});
 </script>
 
 <template>
-    <div class="flex min-h-full flex-col justify-end gap-4 p-4 sm:p-5">
+    <div class="flex min-h-full flex-col justify-end gap-4 p-4 sm:p-5" @click="handleMessageContainerClick">
         <div v-if="loading" aria-label="Cargando conversación" class="flex flex-col gap-3">
             <div class="h-14 w-4/5 rounded-2xl bg-skeleton motion-safe:animate-pulse dark:bg-white/10" />
             <div class="ml-auto h-12 w-3/5 rounded-2xl bg-[#ead6d8] motion-safe:animate-pulse dark:bg-[#572630]" />
