@@ -229,6 +229,7 @@ async function handleAction(action: AssistantAction, operation: 'confirm' | 'can
                             @scan="startImageScan"
                             @confirm-action="handleAction($event, 'confirm')"
                             @cancel-action="handleAction($event, 'cancel')"
+                            @stream-progress="scrollToLatest()"
                         />
                     </div>
 

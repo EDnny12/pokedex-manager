@@ -216,8 +216,6 @@ async function generateWithModel(
             };
         }
 
-        const functionResponses = [];
-
         for (const functionCall of functionCalls) {
             if (!functionCall.name || !MODEL_TOOL_NAMES.has(functionCall.name)) {
                 throw new Error('Gemini solicitó una herramienta no permitida.');
@@ -225,18 +223,24 @@ async function generateWithModel(
 
             usedTools.push(functionCall.name);
             onToolCall();
-            const result = await client.callTool({
-                name: functionCall.name,
-                arguments: functionCall.args ?? {},
-            });
-            functionResponses.push({
-                functionResponse: {
-                    id: functionCall.id,
-                    name: functionCall.name,
-                    response: { result: readToolResult(result) },
-                },
-            });
         }
+
+        const functionResponses = await Promise.all(
+            functionCalls.map(async (functionCall) => {
+                const result = await client.callTool({
+                    name: functionCall.name!,
+                    arguments: functionCall.args ?? {},
+                });
+
+                return {
+                    functionResponse: {
+                        id: functionCall.id,
+                        name: functionCall.name,
+                        response: { result: readToolResult(result) },
+                    },
+                };
+            }),
+        );
 
         response = await chat.sendMessage({ message: functionResponses });
     }

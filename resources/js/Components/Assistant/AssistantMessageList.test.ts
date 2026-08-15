@@ -110,4 +110,24 @@ describe('AssistantMessageList', () => {
 
         expect(wrapper.get('[role="status"]').text()).toContain('Pika IA está consultando la Pokédex…');
     });
+
+    it('inicia el efecto de escritura para una nueva respuesta del asistente', async () => {
+        const wrapper = mount(AssistantMessageList, {
+            props: {
+                ...defaultProps,
+                messages: [
+                    { id: '1', role: 'user', content: '¿Quién es Pikachu?', metadata: {}, attachments: [], created_at: '2026-08-13T00:00:00Z' },
+                ],
+            },
+        });
+
+        await wrapper.setProps({
+            messages: [
+                { id: '1', role: 'user', content: '¿Quién es Pikachu?', metadata: {}, attachments: [], created_at: '2026-08-13T00:00:00Z' },
+                { id: '2', role: 'assistant', content: 'Pikachu es de tipo Eléctrico.', metadata: {}, attachments: [], created_at: '2026-08-13T00:00:01Z' },
+            ],
+        });
+
+        expect(wrapper.html()).toContain('Pikachu');
+    });
 });

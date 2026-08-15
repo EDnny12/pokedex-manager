@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import AppIcon from '@/Components/App/AppIcon.vue';
 import AssistantActionCard from '@/Components/Assistant/AssistantActionCard.vue';
+import { useTypewriter } from '@/composables/useTypewriter';
 import type { AssistantAction, AssistantMessage } from '@/types/assistant';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { computed } from 'vue';
+import { watch } from 'vue';
 
-defineProps<{
+const props = defineProps<{
     messages: readonly AssistantMessage[];
     actions: readonly AssistantAction[];
     loading: boolean;
@@ -16,12 +17,13 @@ defineProps<{
     busyActionId: string | null;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
     suggestion: [message: string];
     scan: [];
     loadOlder: [];
     confirmAction: [action: AssistantAction];
     cancelAction: [action: AssistantAction];
+    streamProgress: [];
 }>();
 
 const suggestions = [
@@ -30,6 +32,36 @@ const suggestions = [
     '¿Cómo puedo equilibrar mi colección?',
     'Compara Pikachu con Jolteon',
 ];
+
+const { typeMessage, isMessageTyping, getDisplayedContent } = useTypewriter();
+const seenMessageIds = new Set<string>(props.messages.map((message) => message.id));
+
+watch(
+    () => props.messages,
+    (newMessages) => {
+        if (newMessages.length === 0) {
+            seenMessageIds.clear();
+            return;
+        }
+
+        const lastMessage = newMessages[newMessages.length - 1];
+        if (
+            lastMessage &&
+            lastMessage.role === 'assistant' &&
+            !seenMessageIds.has(lastMessage.id)
+        ) {
+            typeMessage(
+                lastMessage.id,
+                lastMessage.content,
+                () => emit('streamProgress'),
+            );
+        }
+
+        for (const message of newMessages) {
+            seenMessageIds.add(message.id);
+        }
+    },
+);
 
 function renderMarkdown(content: string): string {
     return DOMPurify.sanitize(marked.parse(content) as string);
@@ -121,7 +153,14 @@ function renderMarkdown(content: string): string {
                     </div>
                     <p v-if="message.role === 'user'" class="whitespace-pre-wrap break-words px-3.5 py-3">{{ message.content }}</p>
                     <!-- eslint-disable-next-line vue/no-v-html -->
-                    <div v-else class="prose prose-sm max-w-none break-words px-3.5 py-3 dark:prose-invert prose-p:leading-6 prose-p:my-1 prose-headings:font-bold prose-ul:my-1 prose-ol:my-1 prose-li:my-0" v-html="renderMarkdown(message.content)" />
+                    <div v-else class="prose prose-sm max-w-none break-words px-3.5 py-3 dark:prose-invert prose-p:leading-6 prose-p:my-1 prose-headings:font-bold prose-ul:my-1 prose-ol:my-1 prose-li:my-0">
+                        <span v-html="renderMarkdown(getDisplayedContent(message.id, message.content))" />
+                        <span
+                            v-if="isMessageTyping(message.id)"
+                            class="inline-block h-3.5 w-1.5 translate-y-0.5 rounded-xs bg-[#c62f3d] align-baseline dark:bg-[#f4b0b7] motion-safe:animate-pulse"
+                            aria-hidden="true"
+                        />
+                    </div>
                 </div>
             </div>
 
