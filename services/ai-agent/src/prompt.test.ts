@@ -33,7 +33,7 @@ test('system prompt defines balance and evidence-aware response formats', () => 
     assert.match(SYSTEM_PROMPT, /type diversity/i);
     assert.match(SYSTEM_PROMPT, /overall distribution of available base statistics/i);
     assert.match(SYSTEM_PROMPT, /at most three candidates/i);
-    assert.match(SYSTEM_PROMPT, /do not rely on Markdown tables/i);
+    assert.match(SYSTEM_PROMPT, /Never use Markdown tables/i);
 });
 
 test('system prompt requires explicit intent and UI confirmation for mutations', () => {
