@@ -121,9 +121,26 @@ const changeDescriptions = computed(() => {
                 {{ busy ? 'Procesando…' : confirmLabel }}
             </button>
         </div>
-        <p v-else class="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-[#626979] dark:text-[#bdc5d2]">
-            <AppIcon name="check" class="size-4" />
-            {{ action.status === 'executed' ? 'Acción completada' : action.status === 'cancelled' ? 'Acción cancelada' : 'Acción no disponible' }}
-        </p>
+        <div v-else class="mt-3 flex items-center gap-2">
+            <span
+                class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold"
+                :class="{
+                    'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300': action.status === 'executed' || action.status === 'confirmed',
+                    'border-stone-200 bg-stone-100 text-stone-600 dark:border-white/10 dark:bg-white/5 dark:text-stone-300': action.status === 'cancelled',
+                    'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-300': action.status === 'expired' || action.status === 'failed',
+                }"
+            >
+                <AppIcon :name="action.status === 'executed' || action.status === 'confirmed' ? 'check' : action.status === 'cancelled' ? 'close' : 'sparkles'" class="size-3.5" />
+                <span>
+                    {{
+                        action.status === 'executed' || action.status === 'confirmed'
+                            ? (isAdd ? 'Pokémon agregado' : isUpdate ? 'Cambios guardados' : 'Pokémon eliminado')
+                            : action.status === 'cancelled'
+                            ? 'Acción cancelada'
+                            : 'Acción expirada'
+                    }}
+                </span>
+            </span>
+        </div>
     </article>
 </template>

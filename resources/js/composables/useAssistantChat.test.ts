@@ -118,4 +118,67 @@ describe('useAssistantChat', () => {
         expect(chat.messages.value.map((message) => message.id)).toEqual(['message-1', 'message-2']);
         expect(chat.hasOlderMessages.value).toBe(false);
     });
+
+    it('inicia una nueva conversacion instantaneamente sin llamadas de red previas', async () => {
+        page.props.auth.user.id = 404;
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+
+        const chat = useAssistantChat();
+        chat.startNewConversation();
+
+        expect(chat.activeConversation.value).toBeNull();
+        expect(chat.messages.value).toEqual([]);
+        expect(chat.actions.value).toEqual([]);
+        expect(chat.loading.value).toBe(false);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('reutiliza la cache en memoria al cambiar de conversacion inmediatamente', async () => {
+        page.props.auth.user.id = 505;
+        const conversationA = {
+            id: 'conv-a',
+            title: 'Conversación A',
+            last_message_at: null,
+            created_at: '2026-08-15T00:00:00Z',
+        };
+        const messageA = {
+            id: 'msg-a',
+            role: 'user' as const,
+            content: 'Hola en A',
+            metadata: {},
+            attachments: [],
+            created_at: '2026-08-15T00:00:01Z',
+        };
+
+        const fetchMock = vi.fn(async () => ({
+            ok: true,
+            json: async () => ({
+                active_conversation: conversationA,
+                messages: {
+                    data: [messageA],
+                    next_cursor: null,
+                    has_more: false,
+                },
+                actions: [],
+            }),
+        }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const chat = useAssistantChat();
+        // Cargar por primera vez
+        await chat.selectConversation(conversationA);
+        expect(chat.messages.value).toHaveLength(1);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+
+        // Limpiar para simular que estamos en otra vista
+        chat.startNewConversation();
+        expect(chat.messages.value).toHaveLength(0);
+
+        // Al volver a seleccionar conversationA, se restaura desde caché de inmediato
+        await chat.selectConversation(conversationA);
+        expect(chat.messages.value).toHaveLength(1);
+        expect(chat.messages.value[0].content).toBe('Hola en A');
+    });
 });
+

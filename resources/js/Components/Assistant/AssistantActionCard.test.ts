@@ -86,4 +86,19 @@ describe('AssistantActionCard', () => {
 
         expect(wrapper.emitted('confirm')?.[0]).toEqual([updateAction]);
     });
+
+    it('muestra el distintivo correspondiente cuando la accion fue ejecutada o cancelada', () => {
+        const executedWrapper = mount(AssistantActionCard, {
+            props: { action: { ...addAction, status: 'executed' as const } },
+        });
+        expect(executedWrapper.text()).toContain('Pokémon agregado');
+        expect(executedWrapper.find('button').exists()).toBe(false);
+
+        const cancelledWrapper = mount(AssistantActionCard, {
+            props: { action: { ...action, status: 'cancelled' as const } },
+        });
+        expect(cancelledWrapper.text()).toContain('Acción cancelada');
+        expect(cancelledWrapper.find('button').exists()).toBe(false);
+    });
 });
+

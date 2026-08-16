@@ -167,4 +167,53 @@ describe('AssistantMessageList', () => {
         await audioButton.trigger('click');
         expect(playMock).toHaveBeenCalledOnce();
     });
+
+    it('intercala mensajes y tarjetas de accion en estricto orden cronologico', () => {
+        const wrapper = mount(AssistantMessageList, {
+            props: {
+                ...defaultProps,
+                messages: [
+                    { id: 'm1', role: 'user', content: 'Agrega a Bulbasaur', metadata: {}, attachments: [], created_at: '2026-08-13T10:00:00Z' },
+                    { id: 'm2', role: 'assistant', content: 'He preparado a Bulbasaur', metadata: {}, attachments: [], created_at: '2026-08-13T10:00:01Z' },
+                    { id: 'm3', role: 'user', content: 'Ahora busca a Pikachu', metadata: {}, attachments: [], created_at: '2026-08-13T10:05:00Z' },
+                    { id: 'm4', role: 'assistant', content: 'Aquí tienes a Pikachu', metadata: {}, attachments: [], created_at: '2026-08-13T10:05:01Z' },
+                ],
+                actions: [
+                    {
+                        id: 'a1',
+                        type: 'add_pokemon' as const,
+                        status: 'executed' as const,
+                        payload: { pokemon_id: 1, display_name: 'Bulbasaur', image: null },
+                        expires_at: '2026-08-13T10:15:00Z',
+                        executed_at: '2026-08-13T10:01:00Z',
+                        created_at: '2026-08-13T10:00:02Z',
+                    },
+                    {
+                        id: 'a2',
+                        type: 'add_pokemon' as const,
+                        status: 'pending' as const,
+                        payload: { pokemon_id: 25, display_name: 'Pikachu', image: null },
+                        expires_at: '2026-08-13T10:20:00Z',
+                        executed_at: null,
+                        created_at: '2026-08-13T10:05:02Z',
+                    },
+                ],
+            },
+        });
+
+        const text = wrapper.text();
+        const posM1 = text.indexOf('Agrega a Bulbasaur');
+        const posM2 = text.indexOf('He preparado a Bulbasaur');
+        const posA1 = text.indexOf('Agregar a Bulbasaur');
+        const posM3 = text.indexOf('Ahora busca a Pikachu');
+        const posM4 = text.indexOf('Aquí tienes a Pikachu');
+        const posA2 = text.indexOf('Agregar a Pikachu');
+
+        expect(posM1).toBeLessThan(posM2);
+        expect(posM2).toBeLessThan(posA1);
+        expect(posA1).toBeLessThan(posM3);
+        expect(posM3).toBeLessThan(posM4);
+        expect(posM4).toBeLessThan(posA2);
+    });
 });
+

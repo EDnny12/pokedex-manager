@@ -23,6 +23,15 @@ const initialized = shallowRef(false);
 let activeOwnerId: number | null = null;
 let ownerRevision = 0;
 
+interface ConversationCacheEntry {
+    active_conversation: AssistantConversation;
+    messages: AssistantMessage[];
+    messageCursor: string | null;
+    actions: AssistantAction[];
+}
+
+const conversationCache = new Map<string, ConversationCacheEntry>();
+
 function resetState(): void {
     conversations.value = [];
     activeConversation.value = null;
@@ -34,6 +43,7 @@ function resetState(): void {
     sending.value = false;
     error.value = null;
     initialized.value = false;
+    conversationCache.clear();
 }
 
 function synchronizeOwner(userId: number): void {
@@ -89,28 +99,60 @@ async function load(conversationId?: string, silent = false): Promise<void> {
     error.value = null;
 
     try {
-        const url = new URL(route('assistant.conversations.index'), window.location.origin);
-
         if (conversationId) {
-            url.searchParams.set('conversation', conversationId);
+            const url = new URL(
+                route('assistant.conversations.show', conversationId),
+                window.location.origin,
+            );
+            const payload = await request<{
+                active_conversation: AssistantConversation;
+                messages: AssistantMessagePage;
+                actions: AssistantAction[];
+            }>(url.toString());
+
+            if (!isCurrentOwner(revision)) {
+                return;
+            }
+
+            activeConversation.value = payload.active_conversation;
+            messages.value = payload.messages.data;
+            messageCursor.value = payload.messages.next_cursor;
+            actions.value = payload.actions;
+
+            conversationCache.set(conversationId, {
+                active_conversation: payload.active_conversation,
+                messages: payload.messages.data,
+                messageCursor: payload.messages.next_cursor,
+                actions: payload.actions,
+            });
+        } else {
+            const url = new URL(route('assistant.conversations.index'), window.location.origin);
+            const bootstrap = await request<AssistantBootstrap>(url.toString());
+
+            if (!isCurrentOwner(revision)) {
+                return;
+            }
+
+            conversations.value = bootstrap.conversations;
+            activeConversation.value = bootstrap.active_conversation;
+
+            if (!silent) {
+                messages.value = bootstrap.messages.data;
+                messageCursor.value = bootstrap.messages.next_cursor;
+            }
+
+            actions.value = bootstrap.actions;
+            initialized.value = true;
+
+            if (bootstrap.active_conversation) {
+                conversationCache.set(bootstrap.active_conversation.id, {
+                    active_conversation: bootstrap.active_conversation,
+                    messages: bootstrap.messages.data,
+                    messageCursor: bootstrap.messages.next_cursor,
+                    actions: bootstrap.actions,
+                });
+            }
         }
-
-        const bootstrap = await request<AssistantBootstrap>(url.toString());
-
-        if (!isCurrentOwner(revision)) {
-            return;
-        }
-
-        conversations.value = bootstrap.conversations;
-        activeConversation.value = bootstrap.active_conversation;
-
-        if (!silent) {
-            messages.value = bootstrap.messages.data;
-            messageCursor.value = bootstrap.messages.next_cursor;
-        }
-
-        actions.value = bootstrap.actions;
-        initialized.value = true;
     } catch (exception) {
         if (isCurrentOwner(revision)) {
             error.value = exception instanceof Error ? exception.message : 'No pudimos cargar tus conversaciones.';
@@ -154,6 +196,15 @@ async function loadOlderMessages(): Promise<boolean> {
         messages.value = [...olderMessages, ...messages.value];
         messageCursor.value = response.messages.next_cursor;
 
+        if (activeConversation.value) {
+            conversationCache.set(conversationId, {
+                active_conversation: activeConversation.value,
+                messages: messages.value,
+                messageCursor: messageCursor.value,
+                actions: actions.value,
+            });
+        }
+
         return true;
     } catch (exception) {
         if (isCurrentOwner(revision)) {
@@ -176,6 +227,15 @@ async function ensureInitialized(): Promise<void> {
     }
 }
 
+function startNewConversation(): void {
+    activeConversation.value = null;
+    messages.value = [];
+    messageCursor.value = null;
+    actions.value = [];
+    loading.value = false;
+    error.value = null;
+}
+
 async function createConversation(): Promise<AssistantConversation | null> {
     const revision = ownerRevision;
     error.value = null;
@@ -196,6 +256,13 @@ async function createConversation(): Promise<AssistantConversation | null> {
         messageCursor.value = null;
         actions.value = [];
 
+        conversationCache.set(conversation.id, {
+            active_conversation: conversation,
+            messages: [],
+            messageCursor: null,
+            actions: [],
+        });
+
         return conversation;
     } catch (exception) {
         if (isCurrentOwner(revision)) {
@@ -207,7 +274,24 @@ async function createConversation(): Promise<AssistantConversation | null> {
 }
 
 async function selectConversation(conversation: AssistantConversation): Promise<void> {
-    await load(conversation.id);
+    const cached = conversationCache.get(conversation.id);
+
+    if (cached) {
+        activeConversation.value = cached.active_conversation;
+        messages.value = cached.messages;
+        messageCursor.value = cached.messageCursor;
+        actions.value = cached.actions;
+        loading.value = false;
+        error.value = null;
+
+        await load(conversation.id, true);
+    } else {
+        activeConversation.value = conversation;
+        messages.value = [];
+        messageCursor.value = null;
+        actions.value = [];
+        await load(conversation.id, false);
+    }
 }
 
 async function deleteConversation(conversation: AssistantConversation): Promise<void> {
@@ -221,6 +305,7 @@ async function deleteConversation(conversation: AssistantConversation): Promise<
             return;
         }
 
+        conversationCache.delete(conversation.id);
         conversations.value = conversations.value.filter((item) => item.id !== conversation.id);
 
         if (activeConversation.value?.id === conversation.id) {
@@ -332,6 +417,15 @@ async function updateAction(action: AssistantAction, operation: 'confirm' | 'can
 
         actions.value = actions.value.map((item) => item.id === action.id ? response.action : item);
 
+        if (activeConversation.value) {
+            conversationCache.set(activeConversation.value.id, {
+                active_conversation: activeConversation.value,
+                messages: [...messages.value],
+                messageCursor: messageCursor.value,
+                actions: actions.value,
+            });
+        }
+
         if (operation === 'confirm') {
             const scrollPosition = window.scrollY;
             router.reload({
@@ -382,6 +476,10 @@ export function useAssistantChat() {
         createConversation: async (): Promise<AssistantConversation | null> => {
             synchronizeCurrentOwner();
             return createConversation();
+        },
+        startNewConversation: (): void => {
+            synchronizeCurrentOwner();
+            startNewConversation();
         },
         selectConversation: async (conversation: AssistantConversation): Promise<void> => {
             synchronizeCurrentOwner();

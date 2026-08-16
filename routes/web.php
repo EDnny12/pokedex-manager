@@ -40,6 +40,9 @@ Route::middleware([
     Route::get('/assistant/conversations', [AssistantConversationController::class, 'index'])
         ->middleware('throttle:assistant-read')
         ->name('assistant.conversations.index');
+    Route::get('/assistant/conversations/{assistantConversation}', [AssistantConversationController::class, 'show'])
+        ->middleware('throttle:assistant-read')
+        ->name('assistant.conversations.show');
     Route::post('/assistant/conversations', [AssistantConversationController::class, 'store'])
         ->middleware('throttle:assistant-write')
         ->name('assistant.conversations.store');

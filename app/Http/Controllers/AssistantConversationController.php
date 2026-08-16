@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Actions\PaginateAssistantMessages;
-use App\Enums\AssistantActionStatus;
 use App\Http\Requests\PaginateAssistantMessagesRequest;
 use App\Http\Requests\StoreAssistantConversationRequest;
 use App\Http\Resources\AssistantActionResource;
@@ -51,26 +50,8 @@ class AssistantConversationController extends Controller
                 ? []
                 : AssistantActionResource::collection(
                     $activeConversation->actions()
-                        ->where(function ($query): void {
-                            $confirmedTimeout = max(
-                                2,
-                                (int) config('database.monitoring.confirmed_action_timeout_minutes', 5),
-                            );
-
-                            $query
-                                ->where(function ($query): void {
-                                    $query
-                                        ->where('status', AssistantActionStatus::Pending)
-                                        ->where('expires_at', '>', now());
-                                })
-                                ->orWhere(function ($query) use ($confirmedTimeout): void {
-                                    $query
-                                        ->where('status', AssistantActionStatus::Confirmed)
-                                        ->where('updated_at', '>', now()->subMinutes($confirmedTimeout));
-                                });
-                        })
-                        ->orderByDesc('created_at')
-                        ->orderByDesc('id')
+                        ->orderBy('created_at')
+                        ->orderBy('id')
                         ->limit(50)
                         ->get(),
                 )->resolve(),
@@ -88,6 +69,28 @@ class AssistantConversationController extends Controller
         );
 
         return response()->json(['messages' => $this->resolveMessagePage($messagePage)]);
+    }
+
+    public function show(
+        Request $request,
+        AssistantConversation $assistantConversation,
+        PaginateAssistantMessages $paginateMessages,
+    ): JsonResponse {
+        Gate::authorize('view', $assistantConversation);
+
+        $messagePage = $paginateMessages->handle($assistantConversation);
+
+        return response()->json([
+            'active_conversation' => (new AssistantConversationResource($assistantConversation))->resolve(),
+            'messages' => $this->resolveMessagePage($messagePage),
+            'actions' => AssistantActionResource::collection(
+                $assistantConversation->actions()
+                    ->orderBy('created_at')
+                    ->orderBy('id')
+                    ->limit(50)
+                    ->get(),
+            )->resolve(),
+        ]);
     }
 
     public function store(StoreAssistantConversationRequest $request): AssistantConversationResource

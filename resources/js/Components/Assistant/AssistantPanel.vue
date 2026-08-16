@@ -31,6 +31,7 @@ const {
     hasOlderMessages,
     ensureInitialized,
     createConversation,
+    startNewConversation,
     selectConversation,
     deleteConversation,
     loadOlderMessages,
@@ -90,14 +91,17 @@ function scrollToLatest(force = false): void {
     stickToLatest.value = true;
 }
 
-async function startConversation(): Promise<void> {
-    await createConversation();
+function startConversation(): void {
     showHistory.value = false;
+    startNewConversation();
+    nextTick(() => {
+        composer.value?.focus();
+    });
 }
 
 async function chooseConversation(conversation: AssistantConversation): Promise<void> {
-    await selectConversation(conversation);
     showHistory.value = false;
+    await selectConversation(conversation);
     await nextTick();
     scrollToLatest(true);
 }

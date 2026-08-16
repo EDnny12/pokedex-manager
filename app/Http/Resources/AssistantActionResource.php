@@ -21,6 +21,7 @@ class AssistantActionResource extends JsonResource
             'status' => $this->resource->status->value,
             'expires_at' => $this->resource->expires_at?->toISOString(),
             'executed_at' => $this->resource->executed_at?->toISOString(),
+            'created_at' => $this->resource->created_at?->toISOString(),
         ];
     }
 }

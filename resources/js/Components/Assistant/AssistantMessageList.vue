@@ -5,7 +5,7 @@ import { useTypewriter } from '@/composables/useTypewriter';
 import type { AssistantAction, AssistantMessage } from '@/types/assistant';
 import DOMPurify from 'dompurify';
 import { Marked } from 'marked';
-import { onUnmounted, watch } from 'vue';
+import { computed, onUnmounted, watch } from 'vue';
 
 const props = defineProps<{
     messages: readonly AssistantMessage[];
@@ -137,6 +137,55 @@ onUnmounted(() => {
         activeChatAudio = null;
     }
 });
+
+type TimelineItem =
+    | { type: 'message'; data: AssistantMessage; key: string }
+    | { type: 'action'; data: AssistantAction; key: string };
+
+const timelineItems = computed<TimelineItem[]>(() => {
+    const sortedMessages = [...props.messages].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+
+    const sortedActions = [...props.actions].sort((a, b) => {
+        const timeA = new Date(a.created_at || a.expires_at).getTime();
+        const timeB = new Date(b.created_at || b.expires_at).getTime();
+        return timeA - timeB;
+    });
+
+    const result: TimelineItem[] = [];
+    let actionIndex = 0;
+
+    for (let i = 0; i < sortedMessages.length; i++) {
+        const msg = sortedMessages[i];
+        result.push({ type: 'message', data: msg, key: `msg-${msg.id}` });
+
+        if (msg.role === 'assistant') {
+            const nextMsg = sortedMessages[i + 1];
+            const nextMsgTime = nextMsg ? new Date(nextMsg.created_at).getTime() : Infinity;
+
+            while (actionIndex < sortedActions.length) {
+                const action = sortedActions[actionIndex];
+                const actionTime = new Date(action.created_at || action.expires_at).getTime();
+
+                if (actionTime < nextMsgTime) {
+                    result.push({ type: 'action', data: action, key: `act-${action.id}` });
+                    actionIndex++;
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    while (actionIndex < sortedActions.length) {
+        const action = sortedActions[actionIndex];
+        result.push({ type: 'action', data: action, key: `act-${action.id}` });
+        actionIndex++;
+    }
+
+    return result;
+});
 </script>
 
 <template>
@@ -197,43 +246,52 @@ onUnmounted(() => {
                 </button>
             </div>
 
-            <div
-                v-for="message in messages"
-                :key="message.id"
-                class="flex"
-                :class="message.role === 'user' ? 'justify-end' : 'justify-start'"
-            >
+            <template v-for="item in timelineItems" :key="item.key">
                 <div
-                    class="max-w-[88%] overflow-hidden rounded-2xl text-sm leading-6"
-                    :class="message.role === 'user' ? 'rounded-br-md bg-[#172033] text-white dark:bg-[#f7f4ed] dark:text-[#172033]' : 'rounded-bl-md border border-line bg-white text-[#303849] dark:border-white/10 dark:bg-white/5 dark:text-[#e8ebf0]'"
+                    v-if="item.type === 'message'"
+                    class="flex"
+                    :class="item.data.role === 'user' ? 'justify-end' : 'justify-start'"
                 >
                     <div
-                        v-if="message.attachments.length > 0"
-                        class="grid gap-1.5 p-1.5"
-                        :class="message.attachments.length > 1 ? 'grid-cols-2' : 'grid-cols-1'"
+                        class="max-w-[88%] overflow-hidden rounded-2xl text-sm leading-6"
+                        :class="item.data.role === 'user' ? 'rounded-br-md bg-[#172033] text-white dark:bg-[#f7f4ed] dark:text-[#172033]' : 'rounded-bl-md border border-line bg-white text-[#303849] dark:border-white/10 dark:bg-white/5 dark:text-[#e8ebf0]'"
                     >
-                        <img
-                            v-for="attachment in message.attachments"
-                            :key="attachment.id"
-                            :src="attachment.url"
-                            :alt="`Imagen adjunta: ${attachment.name}`"
-                            class="max-h-56 min-h-24 w-full rounded-xl border border-white/15 bg-white/5 object-contain dark:border-[#172033]/15"
-                            loading="lazy"
-                            decoding="async"
-                        />
-                    </div>
-                    <p v-if="message.role === 'user'" class="whitespace-pre-wrap break-words px-3.5 py-3">{{ message.content }}</p>
-                    <!-- eslint-disable-next-line vue/no-v-html -->
-                    <div v-else class="prose prose-sm max-w-none break-words px-3.5 py-3 dark:prose-invert prose-p:leading-6 prose-p:my-1 prose-headings:font-bold prose-ul:my-1 prose-ol:my-1 prose-li:my-0">
-                        <span v-html="renderMarkdown(getDisplayedContent(message.id, message.content))" />
-                        <span
-                            v-if="isMessageTyping(message.id)"
-                            class="inline-block h-3.5 w-1.5 translate-y-0.5 rounded-xs bg-[#c62f3d] align-baseline dark:bg-[#f4b0b7] motion-safe:animate-pulse"
-                            aria-hidden="true"
-                        />
+                        <div
+                            v-if="item.data.attachments.length > 0"
+                            class="grid gap-1.5 p-1.5"
+                            :class="item.data.attachments.length > 1 ? 'grid-cols-2' : 'grid-cols-1'"
+                        >
+                            <img
+                                v-for="attachment in item.data.attachments"
+                                :key="attachment.id"
+                                :src="attachment.url"
+                                :alt="`Imagen adjunta: ${attachment.name}`"
+                                class="max-h-56 min-h-24 w-full rounded-xl border border-white/15 bg-white/5 object-contain dark:border-[#172033]/15"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </div>
+                        <p v-if="item.data.role === 'user'" class="whitespace-pre-wrap break-words px-3.5 py-3">{{ item.data.content }}</p>
+                        <!-- eslint-disable-next-line vue/no-v-html -->
+                        <div v-else class="prose prose-sm max-w-none break-words px-3.5 py-3 dark:prose-invert prose-p:leading-6 prose-p:my-1 prose-headings:font-bold prose-ul:my-1 prose-ol:my-1 prose-li:my-0">
+                            <span v-html="renderMarkdown(getDisplayedContent(item.data.id, item.data.content))" />
+                            <span
+                                v-if="isMessageTyping(item.data.id)"
+                                class="inline-block h-3.5 w-1.5 translate-y-0.5 rounded-xs bg-[#c62f3d] align-baseline dark:bg-[#f4b0b7] motion-safe:animate-pulse"
+                                aria-hidden="true"
+                            />
+                        </div>
                     </div>
                 </div>
-            </div>
+
+                <AssistantActionCard
+                    v-else-if="item.type === 'action'"
+                    :action="item.data"
+                    :busy="busyActionId === item.data.id"
+                    @confirm="$emit('confirmAction', $event)"
+                    @cancel="$emit('cancelAction', $event)"
+                />
+            </template>
 
             <div v-if="sending" class="flex justify-start" role="status">
                 <div class="inline-flex min-h-11 items-center gap-2 rounded-2xl rounded-bl-md border border-line bg-white px-4 text-sm text-[#697180] dark:border-white/10 dark:bg-white/5 dark:text-[#aab4c4]">
@@ -242,14 +300,5 @@ onUnmounted(() => {
                 </div>
             </div>
         </template>
-
-        <AssistantActionCard
-            v-for="action in actions"
-            :key="action.id"
-            :action="action"
-            :busy="busyActionId === action.id"
-            @confirm="$emit('confirmAction', $event)"
-            @cancel="$emit('cancelAction', $event)"
-        />
     </div>
 </template>

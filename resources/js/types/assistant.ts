@@ -45,6 +45,7 @@ export interface AssistantAction {
     };
     expires_at: string;
     executed_at: string | null;
+    created_at?: string;
 }
 
 export interface AssistantMessagePage {

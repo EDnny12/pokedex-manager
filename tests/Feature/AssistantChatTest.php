@@ -39,6 +39,12 @@ class AssistantChatTest extends TestCase
             ->assertOk()
             ->assertJsonPath('active_conversation.id', $conversationId)
             ->assertJsonCount(1, 'conversations');
+
+        $this->actingAs($user)
+            ->getJson(route('assistant.conversations.show', $conversationId))
+            ->assertOk()
+            ->assertJsonPath('active_conversation.id', $conversationId)
+            ->assertJsonMissingPath('conversations');
     }
 
     public function test_history_uses_a_stable_cursor_from_the_latest_messages(): void
@@ -104,40 +110,40 @@ class AssistantChatTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_conversation_only_returns_currently_actionable_actions(): void
+    public function test_conversation_returns_actions_in_history(): void
     {
-        config(['database.monitoring.confirmed_action_timeout_minutes' => 5]);
         $user = User::factory()->create();
         $conversation = AssistantConversation::factory()->for($user)->create();
         $pending = AssistantAction::factory()
             ->for($user)
             ->for($conversation, 'conversation')
             ->create();
-        AssistantAction::factory()
+        $expired = AssistantAction::factory()
             ->for($user)
             ->for($conversation, 'conversation')
-            ->create(['expires_at' => now()->subMinute()]);
+            ->create(['expires_at' => now()->subMinute(), 'status' => AssistantActionStatus::Expired]);
         $confirmed = AssistantAction::factory()
             ->for($user)
             ->for($conversation, 'conversation')
             ->create([
                 'status' => AssistantActionStatus::Confirmed,
-                'expires_at' => now()->subMinute(),
             ]);
-        AssistantAction::factory()
+        $executed = AssistantAction::factory()
             ->for($user)
             ->for($conversation, 'conversation')
             ->create([
-                'status' => AssistantActionStatus::Confirmed,
-                'updated_at' => now()->subMinutes(6),
+                'status' => AssistantActionStatus::Executed,
+                'executed_at' => now(),
             ]);
 
         $this->actingAs($user)
             ->getJson(route('assistant.conversations.index', ['conversation' => $conversation]))
             ->assertOk()
-            ->assertJsonCount(2, 'actions')
-            ->assertJsonPath('actions.0.id', $confirmed->getKey())
-            ->assertJsonPath('actions.1.id', $pending->getKey());
+            ->assertJsonCount(4, 'actions')
+            ->assertJsonPath('actions.0.id', $pending->getKey())
+            ->assertJsonPath('actions.1.id', $expired->getKey())
+            ->assertJsonPath('actions.2.id', $confirmed->getKey())
+            ->assertJsonPath('actions.3.id', $executed->getKey());
     }
 
     public function test_message_is_persisted_with_agent_response(): void

@@ -40,6 +40,8 @@ function submit(): void {
     emit('submit', content, [...images.value]);
 }
 
+const textarea = useTemplateRef<HTMLTextAreaElement>('textarea');
+
 function openImagePicker(): void {
     if (props.sending || images.value.length >= maximumImages) {
         return;
@@ -48,7 +50,11 @@ function openImagePicker(): void {
     imageInput.value?.click();
 }
 
-defineExpose({ openImagePicker });
+function focus(): void {
+    textarea.value?.focus();
+}
+
+defineExpose({ openImagePicker, focus });
 
 function selectImages(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -139,6 +145,7 @@ function handleKeydown(event: KeyboardEvent): void {
             </label>
             <textarea
                 id="assistant-message"
+                ref="textarea"
                 v-model="message"
                 rows="1"
                 maxlength="2000"
